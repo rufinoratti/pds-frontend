@@ -1,0 +1,104 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%; /* Light mode background - e.g. white */
+    --foreground: 224 71.4% 4.1%; /* Light mode text - e.g. dark blue/black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 220 90% 50%; /* Adjusted primary to a vibrant blue for light mode */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+
+    --secondary: 215 27.9% 90%; /* Lighter grey for secondary elements */
+    --secondary-foreground: 224 71.4% 4.1%;
+
+    --muted: 215 20.2% 93.5%; /* Even lighter grey for muted text/bg */
+    --muted-foreground: 215.4 16.3% 46.9%; 
+
+    --accent: 210 40% 96.1%; /* Default accent */
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+
+    --destructive: 0 75% 55%; /* Brighter red for destructive actions */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20.2% 85%; /* Slightly darker border for better visibility */
+    --input: 215 20.2% 85%; 
+    --ring: 220 90% 60%; /* Ring color matching primary */
+
+    --radius: 0.75rem; /* Slightly larger radius for a softer look */
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%; /* Dark mode background - e.g. very dark blue */
+    --foreground: 210 20% 98%; /* Light mode text - e.g. almost white */
+
+    --card: 224 71.4% 6.1%; /* Slightly lighter dark for cards */
+    --card-foreground: 210 20% 98%;
+
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 210 90% 55%; /* Sky blue for dark mode primary */
+    --primary-foreground: 224 71.4% 4.1%; /* Dark text on primary */
+
+    --secondary: 215 27.9% 17%; /* Darker grey for secondary elements */
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215 20.2% 10.5%; 
+    --muted-foreground: 215.4 16.3% 56.9%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 60% 50%; /* Slightly less intense red for dark mode */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 27.9% 25%; /* Lighter border for dark mode */
+    --input: 215 27.9% 25%;
+    --ring: 210 90% 65%; /* Ring color matching primary */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1; /* Common ligatures and contextual alternates */
+  }
+}
+
+/* Custom scrollbar for a more modern look - Optional */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-muted/50;
+  border-radius: var(--radius);
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/50;
+  border-radius: var(--radius);
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/70;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+   @apply bg-primary/30;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+   @apply bg-primary/50;
+}
+  
