@@ -288,22 +288,6 @@ function MatchDetailsPage() {
             </CardFooter>
         )}
       </Card>
-
-       {/* Placeholder for future chat/comments section */}
-      <Card className={`mt-8 ${darkMode ? 'bg-gray-800/70 border-gray-700 backdrop-blur-md' : 'bg-white/70 border-gray-200 backdrop-blur-md shadow-xl'}`}>
-        <CardHeader>
-          <CardTitle className={`flex items-center ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>
-            <MessageSquare className="mr-2 h-6 w-6" /> Comentarios del Partido
-          </CardTitle>
-          <CardDescription className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-            ¿Alguna duda o comentario? (Próximamente)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className={`${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>La sección de comentarios estará disponible pronto para que puedas comunicarte con otros jugadores y el organizador.</p>
-        </CardContent>
-      </Card>
-
     </motion.div>
   );
 }
