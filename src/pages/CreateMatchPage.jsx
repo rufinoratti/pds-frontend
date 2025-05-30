@@ -7,22 +7,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate, useOutletContext, Link } from 'react-router-dom';
-import { CalendarPlus, MapPin, Users, Clock, BarChart3, AlertTriangle, Sparkles, ShieldPlus } from 'lucide-react';
+import { CalendarPlus, MapPin, Users, Clock, BarChart3, AlertTriangle, Sparkles, ShieldPlus, Trophy } from 'lucide-react';
 
 const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
-const levels = ["Cualquiera", "Principiante", "Intermedio", "Avanzado"];
+const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
 
 function CreateMatchPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { currentUser, darkMode } = useOutletContext();
 
-  const [sport, setSport] = useState('');
-  const [playersNeeded, setPlayersNeeded] = useState('');
-  const [duration, setDuration] = useState('');
-  const [location, setLocation] = useState('');
-  const [dateTime, setDateTime] = useState('');
-  const [levelRequired, setLevelRequired] = useState('Cualquiera');
+  const [matchData, setMatchData] = useState({
+    sport: '',
+    playersNeeded: 2,
+    duration: 60,
+    location: '',
+    dateTime: '',
+    requiredLevel: 'Cualquier nivel'
+  });
+
+  const handleInputChange = (field, value) => {
+    setMatchData(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -32,26 +38,26 @@ function CreateMatchPage() {
       return;
     }
 
-    if (!sport || !playersNeeded || !duration || !location || !dateTime) {
+    if (!matchData.sport || !matchData.playersNeeded || !matchData.duration || !matchData.location || !matchData.dateTime) {
         toast({ title: "Campos incompletos", description: "Por favor, rellena todos los campos obligatorios.", variant: "destructive" });
         return;
     }
     
     const newMatch = {
-      id: Date.now().toString(), // Simple ID generation
-      organizerId: currentUser.username, // Assuming username is unique ID
+      id: Date.now().toString(),
+      organizerId: currentUser.username,
       organizerUsername: currentUser.username,
-      sport,
-      playersNeeded: parseInt(playersNeeded),
-      duration: parseInt(duration),
-      location,
-      dateTime,
-      levelRequired,
+      sport: matchData.sport,
+      playersNeeded: matchData.playersNeeded,
+      duration: matchData.duration,
+      location: matchData.location,
+      dateTime: matchData.dateTime,
+      levelRequired: matchData.requiredLevel,
       status: "Necesitamos jugadores",
-      players: [{ username: currentUser.username, email: currentUser.email }], // Añadir al creador como primer jugador
+      players: [{ username: currentUser.username, email: currentUser.email }],
+      createdAt: new Date().toISOString()
     };
 
-    // Actualizar el estado si ya se alcanzó el número de jugadores necesarios
     if (newMatch.players.length >= newMatch.playersNeeded) {
       newMatch.status = "Partido armado";
     }
@@ -60,7 +66,7 @@ function CreateMatchPage() {
     matches.push(newMatch);
     localStorage.setItem('matches', JSON.stringify(matches));
 
-    toast({ title: "¡Partido Creado!", description: `Tu partido de ${sport} ha sido creado exitosamente.` });
+    toast({ title: "¡Partido Creado!", description: `Tu partido de ${matchData.sport} ha sido creado exitosamente.` });
     navigate(`/match/${newMatch.id}`);
   };
   
@@ -103,64 +109,94 @@ function CreateMatchPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="sport" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Deporte*</Label>
-                <Select value={sport} onValueChange={setSport} required>
-                  <SelectTrigger id="sport" className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
-                    <SelectValue placeholder="Selecciona un deporte" />
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="sport" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <Trophy className="mr-2 h-4 w-4 text-yellow-500" /> Deporte *
+                </Label>
+                <Select value={matchData.sport} onValueChange={(value) => handleInputChange('sport', value)}>
+                  <SelectTrigger id="sport" className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}>
+                    <SelectValue placeholder="Elige un deporte" />
                   </SelectTrigger>
-                  <SelectContent className={darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : ''}>
-                    {sports.map(s => <SelectItem key={s} value={s} className={darkMode ? 'hover:bg-gray-700' : ''}>{s}</SelectItem>)}
+                  <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
+                    {sports.map(s => <SelectItem key={s} value={s} className={darkMode ? 'hover:bg-gray-600' : ''}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="playersNeeded" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Jugadores Necesarios*</Label>
-                 <div className="relative">
-                    <Users className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                    <Input id="playersNeeded" type="number" placeholder="Ej: 10" value={playersNeeded} onChange={(e) => setPlayersNeeded(e.target.value)} required className={`pl-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`} min="1" />
-                </div>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="location" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Ubicación*</Label>
-              <div className="relative">
-                <MapPin className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                <Input id="location" type="text" placeholder="Ej: Cancha El Potrero, Calle Falsa 123" value={location} onChange={(e) => setLocation(e.target.value)} required className={`pl-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`} />
+              <div>
+                <Label htmlFor="playersNeeded" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <Users className="mr-2 h-4 w-4 text-blue-500" /> Jugadores Necesarios *
+                </Label>
+                <Input
+                  id="playersNeeded"
+                  type="number"
+                  min="2"
+                  max="22"
+                  value={matchData.playersNeeded}
+                  onChange={(e) => handleInputChange('playersNeeded', parseInt(e.target.value))}
+                  className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
+                />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="dateTime" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Fecha y Hora*</Label>
-                <Input id="dateTime" type="datetime-local" value={dateTime} onChange={(e) => setDateTime(e.target.value)} required className={darkMode ? 'bg-gray-700 border-gray-600 text-white focus:border-sky-500 [&::-webkit-calendar-picker-indicator]:bg-gray-500' : 'focus:border-blue-500'} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duration" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Duración (minutos)*</Label>
-                 <div className="relative">
-                    <Clock className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                    <Input id="duration" type="number" placeholder="Ej: 90" value={duration} onChange={(e) => setDuration(e.target.value)} required className={`pl-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`} min="10" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="levelRequired" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Nivel Requerido</Label>
-               <div className="relative">
-                 <BarChart3 className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                <Select value={levelRequired} onValueChange={setLevelRequired}>
-                    <SelectTrigger id="levelRequired" className={`pl-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}>
-                        <SelectValue placeholder="Selecciona un nivel" />
-                    </SelectTrigger>
-                    <SelectContent className={darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : ''}>
-                        {levels.map(level => <SelectItem key={level} value={level} className={darkMode ? 'hover:bg-gray-700' : ''}>{level}</SelectItem>)}
-                    </SelectContent>
+              <div>
+                <Label htmlFor="requiredLevel" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <Trophy className="mr-2 h-4 w-4 text-yellow-500" /> Nivel Requerido
+                </Label>
+                <Select value={matchData.requiredLevel} onValueChange={(value) => handleInputChange('requiredLevel', value)}>
+                  <SelectTrigger id="requiredLevel" className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}>
+                    <SelectValue placeholder="Selecciona el nivel requerido" />
+                  </SelectTrigger>
+                  <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
+                    {levels.map(l => <SelectItem key={l} value={l} className={darkMode ? 'hover:bg-gray-600' : ''}>{l}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="duration" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <Clock className="mr-2 h-4 w-4 text-green-500" /> Duración (minutos) *
+                </Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min="30"
+                  max="180"
+                  step="30"
+                  value={matchData.duration}
+                  onChange={(e) => handleInputChange('duration', parseInt(e.target.value))}
+                  className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="location" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <MapPin className="mr-2 h-4 w-4 text-red-500" /> Ubicación *
+                </Label>
+                <Input
+                  id="location"
+                  type="text"
+                  value={matchData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  placeholder="Ingresa la ubicación del partido"
+                  className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="dateTime" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <CalendarPlus className="mr-2 h-4 w-4 text-purple-500" /> Fecha y Hora *
+                </Label>
+                <Input
+                  id="dateTime"
+                  type="datetime-local"
+                  value={matchData.dateTime}
+                  onChange={(e) => handleInputChange('dateTime', e.target.value)}
+                  className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
+                />
+              </div>
             </div>
-            
+
             <div className="flex items-start space-x-3 pt-2">
               <AlertTriangle className={`h-5 w-5 mt-0.5 ${darkMode ? 'text-yellow-400' : 'text-yellow-500'}`} />
               <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>

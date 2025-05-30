@@ -1,17 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Importación añadida
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Link, useOutletContext } from 'react-router-dom';
-import { MapPin, CalendarDays, Users, Search, Filter, ShieldAlert, ShieldCheck, ShieldQuestion, Clock, Sparkles, ChevronRight } from 'lucide-react';
+import { MapPin, CalendarDays, Users, Search, Filter, ShieldAlert, ShieldCheck, ShieldQuestion, Clock, Sparkles, ChevronRight, Trophy } from 'lucide-react';
 
-const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
-const levels = ["Cualquiera", "Principiante", "Intermedio", "Avanzado"];
+const sports = ["Todos", "Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
+const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
 
 const MatchStatusBadge = ({ status, darkMode }) => {
   let bgColor, textColor, Icon;
@@ -26,7 +25,26 @@ const MatchStatusBadge = ({ status, darkMode }) => {
       textColor = darkMode ? 'text-green-400' : 'text-green-600';
       Icon = ShieldCheck;
       break;
-    // Add other statuses as needed
+    case 'Confirmado':
+      bgColor = darkMode ? 'bg-blue-500/20' : 'bg-blue-100';
+      textColor = darkMode ? 'text-blue-400' : 'text-blue-600';
+      Icon = ShieldCheck;
+      break;
+    case 'En juego':
+      bgColor = darkMode ? 'bg-purple-500/20' : 'bg-purple-100';
+      textColor = darkMode ? 'text-purple-400' : 'text-purple-600';
+      Icon = Clock;
+      break;
+    case 'Finalizado':
+      bgColor = darkMode ? 'bg-gray-500/20' : 'bg-gray-100';
+      textColor = darkMode ? 'text-gray-400' : 'text-gray-600';
+      Icon = Trophy;
+      break;
+    case 'Cancelado':
+      bgColor = darkMode ? 'bg-red-500/20' : 'bg-red-100';
+      textColor = darkMode ? 'text-red-400' : 'text-red-600';
+      Icon = ShieldAlert;
+      break;
     default:
       bgColor = darkMode ? 'bg-gray-500/20' : 'bg-gray-100';
       textColor = darkMode ? 'text-gray-400' : 'text-gray-500';
@@ -40,39 +58,57 @@ const MatchStatusBadge = ({ status, darkMode }) => {
   );
 };
 
-
 function FindMatchPage() {
   const { toast } = useToast();
   const { currentUser, darkMode } = useOutletContext();
   const [matches, setMatches] = useState([]);
   const [filteredMatches, setFilteredMatches] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sportFilter, setSportFilter] = useState('');
-  const [levelFilter, setLevelFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    sport: 'Todos',
+    location: '',
+    requiredLevel: 'Cualquier nivel',
+  });
 
   useEffect(() => {
-    const storedMatches = JSON.parse(localStorage.getItem('matches')) || [];
-    setMatches(storedMatches);
-    setFilteredMatches(storedMatches);
+    const allMatches = JSON.parse(localStorage.getItem('matches')) || [];
+    setMatches(allMatches);
+    applyFilters({ ...filters, matches: allMatches });
   }, []);
 
   useEffect(() => {
-    let result = matches;
-    if (searchTerm) {
-      result = result.filter(match =>
-        match.sport.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        match.location.toLowerCase().includes(searchTerm.toLowerCase())
+    applyFilters(filters);
+  }, [filters, matches]);
+
+  const handleFilterChange = (field, value) => {
+    const newFilters = { ...filters, [field]: value };
+    setFilters(newFilters);
+    applyFilters(newFilters);
+  };
+
+  const applyFilters = (currentFilters) => {
+    let filtered = [...matches];
+
+    // Filtrar por deporte
+    if (currentFilters.sport !== 'Todos') {
+      filtered = filtered.filter(match => match.sport === currentFilters.sport);
+    }
+
+    // Filtrar por ubicación
+    if (currentFilters.location) {
+      filtered = filtered.filter(match => 
+        match.location.toLowerCase().includes(currentFilters.location.toLowerCase())
       );
     }
-    if (sportFilter) {
-      result = result.filter(match => match.sport === sportFilter);
+
+    // Filtrar por nivel requerido
+    if (currentFilters.requiredLevel !== 'Cualquier nivel') {
+      filtered = filtered.filter(match => 
+        match.levelRequired === currentFilters.requiredLevel || match.levelRequired === 'Cualquier nivel'
+      );
     }
-    if (levelFilter && levelFilter !== "Cualquiera") {
-      result = result.filter(match => match.levelRequired === levelFilter || match.levelRequired === "Cualquiera");
-    }
-    setFilteredMatches(result);
-  }, [searchTerm, sportFilter, levelFilter, matches]);
+
+    setFilteredMatches(filtered);
+  };
 
   if (!currentUser) {
     return (
@@ -104,10 +140,10 @@ function FindMatchPage() {
       <div className={`p-6 rounded-xl shadow-lg ${darkMode ? 'bg-gray-800/70 border border-gray-700' : 'bg-white/70 border border-gray-200 backdrop-blur-md'}`}>
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <h1 className={`text-4xl font-extrabold ${darkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500' : 'text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-700'}`}>
-            Encuentra tu Partido Ideal
+            Encuentra tu partido
           </h1>
-          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className={`${darkMode ? 'border-sky-500 text-sky-400 hover:bg-sky-500/20' : 'border-blue-600 text-blue-700 hover:bg-blue-600/10'}`}>
-            <Filter className="mr-2 h-4 w-4" /> {showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+          <Button onClick={() => {setFilters({ sport: 'Todos', location: '', requiredLevel: 'Cualquier nivel' });}} variant="outline" className={`${darkMode ? 'border-sky-500 text-sky-400 hover:bg-sky-500/20' : 'border-blue-600 text-blue-700 hover:bg-blue-600/10'}`}>
+            <Filter className="mr-2 h-4 w-4" /> Limpiar Filtros
           </Button>
         </div>
         
@@ -116,45 +152,36 @@ function FindMatchPage() {
           <Input
             type="text"
             placeholder="Buscar por deporte o ubicación..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={filters.location}
+            onChange={(e) => handleFilterChange('location', e.target.value)}
             className={`pl-10 text-lg py-3 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`}
           />
         </div>
 
-        {showFilters && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 overflow-hidden"
-          >
-            <div>
-              <Label htmlFor="sport-filter" className={`mb-1 block ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Deporte</Label>
-              <Select value={sportFilter} onValueChange={setSportFilter}>
-                <SelectTrigger id="sport-filter" className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
-                  <SelectValue placeholder="Todos los deportes" />
-                </SelectTrigger>
-                <SelectContent className={darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : ''}>
-                  <SelectItem value="" className={darkMode ? 'hover:bg-gray-700' : ''}>Todos los deportes</SelectItem>
-                  {sports.map(sport => <SelectItem key={sport} value={sport} className={darkMode ? 'hover:bg-gray-700' : ''}>{sport}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="level-filter" className={`mb-1 block ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nivel Requerido</Label>
-              <Select value={levelFilter} onValueChange={setLevelFilter}>
-                <SelectTrigger id="level-filter" className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
-                  <SelectValue placeholder="Cualquier Nivel" />
-                </SelectTrigger>
-                <SelectContent className={darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : ''}>
-                  {levels.map(level => <SelectItem key={level} value={level} className={darkMode ? 'hover:bg-gray-700' : ''}>{level}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </motion.div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 overflow-hidden">
+          <div>
+            <Label htmlFor="sport-filter" className={`mb-1 block ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Deporte</Label>
+            <Select value={filters.sport} onValueChange={(value) => handleFilterChange('sport', value)}>
+              <SelectTrigger id="sport-filter" className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
+                <SelectValue placeholder="Todos los deportes" />
+              </SelectTrigger>
+              <SelectContent className={darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : ''}>
+                {sports.map(sport => <SelectItem key={sport} value={sport} className={darkMode ? 'hover:bg-gray-700' : ''}>{sport}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="level-filter" className={`mb-1 block ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nivel Requerido</Label>
+            <Select value={filters.requiredLevel} onValueChange={(value) => handleFilterChange('requiredLevel', value)}>
+              <SelectTrigger id="level-filter" className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
+                <SelectValue placeholder="Cualquier Nivel" />
+              </SelectTrigger>
+              <SelectContent className={darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : ''}>
+                {levels.map(level => <SelectItem key={level} value={level} className={darkMode ? 'hover:bg-gray-700' : ''}>{level}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {filteredMatches.length > 0 ? (
@@ -219,7 +246,7 @@ function FindMatchPage() {
             Intenta ajustar tus filtros o amplía tu búsqueda. ¡También puedes crear tu propio partido!
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button onClick={() => {setSearchTerm(''); setSportFilter(''); setLevelFilter('');}} variant="outline" className={`${darkMode ? 'border-sky-500 text-sky-400 hover:bg-sky-500/20' : 'border-blue-600 text-blue-700 hover:bg-blue-600/10'}`}>
+            <Button onClick={() => {setFilters({ sport: 'Todos', location: '', requiredLevel: 'Cualquier nivel' });}} variant="outline" className={`${darkMode ? 'border-sky-500 text-sky-400 hover:bg-sky-500/20' : 'border-blue-600 text-blue-700 hover:bg-blue-600/10'}`}>
               Limpiar Filtros
             </Button>
             <Button asChild className={`${darkMode ? 'bg-sky-500 hover:bg-sky-600' : 'bg-blue-600 hover:bg-blue-700'}`}>

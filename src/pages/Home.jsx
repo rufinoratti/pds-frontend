@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -12,11 +11,11 @@ const FeatureCard = ({ icon, title, description, delay, darkMode }) => (
     transition={{ duration: 0.5, delay }}
     className={`p-6 rounded-xl shadow-xl transform hover:scale-105 transition-transform duration-300 ${darkMode ? 'bg-gray-800/70 backdrop-blur-md border border-gray-700' : 'bg-white/70 backdrop-blur-md border border-gray-200'}`}
   >
-    <div className={`flex items-center justify-center w-12 h-12 rounded-full mb-4 ${darkMode ? 'bg-sky-500/20 text-sky-400' : 'bg-blue-500/10 text-blue-600'}`}>
+    <div className={`flex items-center justify-center w-12 h-12 rounded-full mb-4 mx-auto ${darkMode ? 'bg-sky-500/20 text-sky-400' : 'bg-blue-500/10 text-blue-600'}`}>
       {icon}
     </div>
-    <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-sky-300' : 'text-blue-700'}`}>{title}</h3>
-    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{description}</p>
+    <h3 className={`text-xl font-semibold mb-2 text-center ${darkMode ? 'text-sky-300' : 'text-blue-700'}`}>{title}</h3>
+    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm text-center`}>{description}</p>
   </motion.div>
 );
 
@@ -86,7 +85,7 @@ function Home() {
         >
           <h2 className={`text-3xl font-bold mb-4 ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>¡Hola, {currentUser.username}!</h2>
           <p className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} mb-6`}>
-            ¿Listo para tu próxima aventura deportiva? Revisa los partidos disponibles o crea uno nuevo.
+            ¿Listo para tu próximo partido? Revisa los partidos disponibles o crea uno nuevo.
           </p>
           <div className="flex justify-center space-x-4">
             <Button asChild className={`${darkMode ? 'bg-sky-500 hover:bg-sky-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
@@ -99,7 +98,7 @@ function Home() {
       <div className="mt-16">
         <h2 className={`text-3xl font-bold mb-8 ${darkMode ? 'text-sky-300' : 'text-blue-800'}`}>Deportes Populares</h2>
         <div className="flex flex-wrap justify-center gap-4">
-          {['Fútbol', 'Básquet', 'Vóley', 'Tenis', 'Pádel', 'Running'].map((sport, index) => (
+          {['Fútbol', 'Básquet', 'Vóley', 'Tenis', 'Pádel'].map((sport, index) => (
             <motion.div
               key={sport}
               initial={{ opacity: 0, scale: 0.5 }}
