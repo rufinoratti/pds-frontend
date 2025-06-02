@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -7,11 +6,10 @@ import AuthPage from '@/pages/AuthPage';
 import FindMatchPage from '@/pages/FindMatchPage';
 import CreateMatchPage from '@/pages/CreateMatchPage';
 import MatchDetailsPage from '@/pages/MatchDetailsPage';
-import UserProfilePage from '@/pages/UserProfilePage'; // Assuming you'll create this
-import { Toaster } from '@/components/ui/toaster'; // Already exists
+import UserProfilePage from '@/pages/UserProfilePage'; 
+import { Toaster } from '@/components/ui/toaster'; 
 
-// Placeholder for EditMatchPage if you implement it
-// import EditMatchPage from '@/pages/EditMatchPage'; 
+import EditMatchPage from '@/pages/EditMatchPage'; 
 
 function App() {
   return (
@@ -25,8 +23,7 @@ function App() {
           <Route path="create-match" element={<CreateMatchPage />} />
           <Route path="match/:matchId" element={<MatchDetailsPage />} />
           <Route path="profile/:username" element={<UserProfilePage />} /> 
-          {/* Example for a protected route or edit page */}
-          {/* <Route path="edit-match/:matchId" element={<EditMatchPage />} /> */}
+          <Route path="edit-match/:matchId" element={<EditMatchPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

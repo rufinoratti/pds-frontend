@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -271,8 +270,12 @@ function MatchDetailsPage() {
                     <CheckCircle className="mr-2 h-4 w-4" /> Confirmar Partido
                 </Button>
             )}
-            <Button variant="outline" onClick={() => navigate(`/edit-match/${matchId}`)} className={`${darkMode ? 'border-sky-500 text-sky-400 hover:bg-sky-500/20' : 'border-blue-600 text-blue-700 hover:bg-blue-600/10'}`}>
-              <Edit3 className="mr-2 h-4 w-4" /> Editar Partido
+            <Button 
+              variant="outline" 
+              className={darkMode ? 'border-sky-500 text-sky-400 hover:bg-sky-500/20' : ''}
+              onClick={() => navigate(`/edit-match/${match.id}`)}
+            >
+                <Edit3 className="mr-2 h-4 w-4" /> Editar Partido
             </Button>
           </CardFooter>
         )}
