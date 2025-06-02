@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useLocation } from 'react-router-dom';
 import { MapPin, CalendarDays, Users, Search, Filter, ShieldAlert, ShieldCheck, ShieldQuestion, Clock, Sparkles, ChevronRight, Trophy } from 'lucide-react';
 
 const sports = ["Todos", "Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
@@ -61,6 +61,7 @@ const MatchStatusBadge = ({ status, darkMode }) => {
 function FindMatchPage() {
   const { toast } = useToast();
   const { currentUser, darkMode } = useOutletContext();
+  const location = useLocation();
   const [matches, setMatches] = useState([]);
   const [filteredMatches, setFilteredMatches] = useState([]);
   const [filters, setFilters] = useState({
@@ -72,8 +73,19 @@ function FindMatchPage() {
   useEffect(() => {
     const allMatches = JSON.parse(localStorage.getItem('matches')) || [];
     setMatches(allMatches);
-    applyFilters({ ...filters, matches: allMatches });
-  }, []);
+
+    const queryParams = new URLSearchParams(location.search);
+    const sportParam = queryParams.get('sport');
+    
+    if (sportParam && sports.includes(sportParam)) {
+      const initialFilters = { ...filters, sport: sportParam };
+      setFilters(initialFilters);
+      applyFilters({ ...initialFilters, matches: allMatches });
+    } else {
+      applyFilters({ ...filters, matches: allMatches });
+    }
+
+  }, [location.search]);
 
   useEffect(() => {
     applyFilters(filters);

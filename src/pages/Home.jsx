@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useNavigate } from 'react-router-dom';
 import { Users, Zap, CalendarPlus } from 'lucide-react';
 
 const FeatureCard = ({ icon, title, description, delay, darkMode }) => (
@@ -21,6 +21,7 @@ const FeatureCard = ({ icon, title, description, delay, darkMode }) => (
 
 function Home() {
   const { darkMode, currentUser } = useOutletContext();
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center text-center py-8 md:py-16">
@@ -105,6 +106,7 @@ function Home() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: 1.3 + index * 0.1 }}
               className={`px-6 py-3 rounded-full text-sm font-medium cursor-pointer shadow-md hover:shadow-lg transition-shadow ${darkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              onClick={() => navigate(`/find-match?sport=${sport}`)}
             >
               {sport}
             </motion.div>
