@@ -107,10 +107,14 @@ function FindMatchPage() {
 
     // Filtrar por ubicación
     if (currentFilters.location) {
-      filtered = filtered.filter(match => 
-        match.location.toLowerCase().includes(currentFilters.location.toLowerCase())
-      );
+      filtered = filtered.filter(match => {
+        const direccion = match.direccion?.toLowerCase() || '';
+        const zona = match.zona?.toLowerCase() || '';
+        const query = currentFilters.location.toLowerCase();
+        return direccion.includes(query) || zona.includes(query);
+      });
     }
+    
 
     // Filtrar por nivel requerido
     if (currentFilters.requiredLevel !== 'Cualquier nivel') {
@@ -214,10 +218,17 @@ function FindMatchPage() {
                   <CardDescription className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Organizado por: {match.organizerUsername || 'Usuario Anónimo'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 flex-grow">
-                  <div className="flex items-center">
-                    <MapPin className={`mr-2 h-5 w-5 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
-                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{match.location}</span>
+                   <div className="flex items-start">
+                  <MapPin className={`mr-2 mt-1 h-5 w-5 flex-shrink-0 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
+                  <div className="space-y-1">
+                    <p className={`${darkMode ? 'text-gray-300' : 'text-gray-700'} text-sm font-medium`}>
+                      Dirección: {match.direccion}
+                    </p>
+                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                      Zona: {match.zona}
+                    </p>
                   </div>
+                </div>
                   <div className="flex items-center">
                     <CalendarDays className={`mr-2 h-5 w-5 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
                     <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{new Date(match.dateTime).toLocaleDateString()} - {new Date(match.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>

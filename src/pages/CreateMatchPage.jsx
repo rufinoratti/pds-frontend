@@ -21,10 +21,12 @@ function CreateMatchPage() {
     sport: '',
     playersNeeded: 2,
     duration: 60,
-    location: '',
+    direccion: '',
+    zona: '',
     dateTime: '',
     requiredLevel: 'Cualquier nivel'
   });
+  
 
   const handleInputChange = (field, value) => {
     setMatchData(prev => ({ ...prev, [field]: value }));
@@ -38,7 +40,7 @@ function CreateMatchPage() {
       return;
     }
 
-    if (!matchData.sport || !matchData.playersNeeded || !matchData.duration || !matchData.location || !matchData.dateTime) {
+    if (!matchData.sport || !matchData.playersNeeded || !matchData.duration || !matchData.zona || !matchData.dateTime) {
         toast({ title: "Campos incompletos", description: "Por favor, rellena todos los campos obligatorios.", variant: "destructive" });
         return;
     }
@@ -50,7 +52,8 @@ function CreateMatchPage() {
       sport: matchData.sport,
       playersNeeded: matchData.playersNeeded,
       duration: matchData.duration,
-      location: matchData.location,
+      direccion: matchData.direccion,
+      zona: matchData.zona,
       dateTime: matchData.dateTime,
       levelRequired: matchData.requiredLevel,
       status: "Necesitamos jugadores",
@@ -168,17 +171,30 @@ function CreateMatchPage() {
                   className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
                 />
               </div>
-
               <div>
-                <Label htmlFor="location" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <MapPin className="mr-2 h-4 w-4 text-red-500" /> Ubicación *
+                <Label htmlFor="direccion" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <MapPin className="mr-2 h-4 w-4 text-red-500" /> Dirección *
                 </Label>
                 <Input
-                  id="location"
+                  id="direccion"
                   type="text"
-                  value={matchData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  placeholder="Ingresa la ubicación del partido"
+                  value={matchData.direccion}
+                  onChange={(e) => handleInputChange('direccion', e.target.value)}
+                  placeholder="Ej: Av. Libertador 1234"
+                  className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="zona" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <MapPin className="mr-2 h-4 w-4 text-red-500" /> Zona *
+                </Label>
+                <Input
+                  id="zona"
+                  type="text"
+                  value={matchData.zona}
+                  onChange={(e) => handleInputChange('zona', e.target.value)}
+                  placeholder="Ej: Belgrano"
                   className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
                 />
               </div>

@@ -173,8 +173,12 @@ function MatchDetailsPage() {
                 <div className="flex items-start">
                   <MapPin className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
                   <div>
-                    <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Ubicación:</span>
-                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{match.location}</p>
+                    <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Dirección:</span>
+                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{match.direccion}</p>
+                  </div>
+                  <div>
+                    <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Zona:</span>
+                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{match.zona}</p>
                   </div>
                 </div>
                 <div className="flex items-start">
