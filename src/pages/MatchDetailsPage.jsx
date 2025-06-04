@@ -222,7 +222,19 @@ function MatchDetailsPage() {
                         alt={player.username} 
                         class={`h-6 w-6 rounded-full mr-2 ${darkMode ? 'border-2 border-sky-500' : 'border-2 border-blue-500'}`}
                          src="https://images.unsplash.com/photo-1643101447193-9c59d5db2771" />
-                      <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{player.username}</span>
+                      <div>
+                        <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{player.username}</span>
+                        {match.teams && (
+                          <div className="text-xs mt-0.5">
+                            {match.teams.teamA.includes(player.username) && (
+                              <span className={`${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>Equipo A</span>
+                            )}
+                            {match.teams.teamB.includes(player.username) && (
+                              <span className={`${darkMode ? 'text-red-400' : 'text-red-600'}`}>Equipo B</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
