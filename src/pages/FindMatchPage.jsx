@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/components/ui/use-toast';
 import { Link, useOutletContext, useLocation } from 'react-router-dom';
 import { MapPin, CalendarDays, Users, Search, Filter, ShieldAlert, ShieldCheck, ShieldQuestion, Clock, Sparkles, ChevronRight, Trophy } from 'lucide-react';
+import { getAllMatches } from '../services/getMatches';
 
 const sports = ["Todos", "Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
 const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
@@ -69,21 +70,31 @@ function FindMatchPage() {
     location: '',
     requiredLevel: 'Cualquier nivel',
   });
+  const [matchesLoading, setMatchesLoading] = useState(true);
 
   useEffect(() => {
-    const allMatches = JSON.parse(localStorage.getItem('matches')) || [];
-    setMatches(allMatches);
+    const fetchMatches = async () => {
+      try {
+        const matches = await getAllMatches();
+        setMatches(matches);
+      } catch (error) {
+        console.error("Error fetching matches:", error);
+      } finally {
+        setMatchesLoading(false);
+      }
+    };
+    fetchMatches();
 
-    const queryParams = new URLSearchParams(location.search);
-    const sportParam = queryParams.get('sport');
+    // const queryParams = new URLSearchParams(location.search);
+    // const sportParam = queryParams.get('sport');
     
-    if (sportParam && sports.includes(sportParam)) {
-      const initialFilters = { ...filters, sport: sportParam };
-      setFilters(initialFilters);
-      applyFilters({ ...initialFilters, matches: allMatches });
-    } else {
-      applyFilters({ ...filters, matches: allMatches });
-    }
+    // if (sportParam && sports.includes(sportParam)) {
+    //   const initialFilters = { ...filters, sport: sportParam };
+    //   setFilters(initialFilters);
+    //   applyFilters({ ...initialFilters, matches: allMatches });
+    // } else {
+    //   applyFilters({ ...filters, matches: allMatches });
+    // }
 
   }, [location.search]);
 
@@ -212,10 +223,10 @@ function FindMatchPage() {
               <Card className={`overflow-hidden h-full flex flex-col transform hover:shadow-2xl transition-shadow duration-300 ${darkMode ? 'bg-gray-800 border-gray-700 hover:border-sky-500' : 'bg-white hover:border-blue-500'}`}>
                 <CardHeader className="pb-4">
                    <div className="flex justify-between items-start">
-                    <CardTitle className={`text-2xl font-bold ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>{match.sport}</CardTitle>
-                    <MatchStatusBadge status={match.status || 'Necesitamos jugadores'} darkMode={darkMode} />
+                    <CardTitle className={`text-2xl font-bold ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>{match.deporte?.nombre}</CardTitle>
+                    <MatchStatusBadge status={match.estado || 'Necesitamos jugadores'} darkMode={darkMode} />
                   </div>
-                  <CardDescription className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Organizado por: {match.organizerUsername || 'Usuario Anónimo'}</CardDescription>
+                  <CardDescription className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Organizado por: {match.organizador?.nombre || 'Usuario Anónimo'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 flex-grow">
                    <div className="flex items-start">
@@ -225,25 +236,25 @@ function FindMatchPage() {
                       Dirección: {match.direccion}
                     </p>
                     <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                      Zona: {match.zona}
+                      Zona: {match.zona?.nombre}
                     </p>
                   </div>
                 </div>
                   <div className="flex items-center">
                     <CalendarDays className={`mr-2 h-5 w-5 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
-                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{new Date(match.dateTime).toLocaleDateString()} - {new Date(match.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{new Date(match.fecha).toLocaleDateString()} - {match.hora}</span>
                   </div>
                    <div className="flex items-center">
                     <Clock className={`mr-2 h-5 w-5 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
-                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Duración: {match.duration} min</span>
+                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Duración: {match.duracion} horas</span>
                   </div>
                   <div className="flex items-center">
                     <Users className={`mr-2 h-5 w-5 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
-                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Jugadores: {(match.players && match.players.length) || 0} / {match.playersNeeded}</span>
+                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Jugadores: {match.jugadoresConfirmados} / {match.cantidadJugadores}</span>
                   </div>
                   <div className="flex items-center">
                     <Sparkles className={`mr-2 h-5 w-5 ${darkMode ? 'text-sky-400' : 'text-blue-600'}`} />
-                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nivel: {match.levelRequired}</span>
+                    <span className={`${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nivel: {match.nivelMinimo} - {match.nivelMaximo}</span>
                   </div>
                 </CardContent>
                 <CardFooter className="pt-4">

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { getMatchById } from '@/services/getMatches';
 
 const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
 const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
@@ -48,43 +49,48 @@ function EditMatchPage() {
   const [isOrganizer, setIsOrganizer] = useState(false);
 
   useEffect(() => {
-    console.log('EditMatchPage useEffect running');
-    console.log('currentUser:', currentUser);
-    const storedMatches = JSON.parse(localStorage.getItem('matches')) || [];
-    const matchToEdit = storedMatches.find(m => m.id === matchId);
+    const fetchMatch = async () => {
+      try {
+        const matchToEdit = await getMatchById(matchId);
+        
+        if (matchToEdit) {
+          console.log('matchToEdit found:', matchToEdit);
+          // Format dateTime for the input field
+          const [datePart, timePart] = matchToEdit.dateTime.split('T');
+          const formattedDateTime = `${datePart}T${timePart}`;
 
-    if (matchToEdit) {
-      console.log('matchToEdit found:', matchToEdit);
-      // Format dateTime for the input field
-      const [datePart, timePart] = matchToEdit.dateTime.split('T');
-      const formattedDateTime = `${datePart}T${timePart}`;
+          setMatchData({
+            sport: matchToEdit.sport || '',
+            playersNeeded: matchToEdit.playersNeeded || 2,
+            duration: matchToEdit.duration || 60,
+            location: matchToEdit.location || '',
+            dateTime: formattedDateTime || '',
+            requiredLevel: matchToEdit.levelRequired || 'Cualquier nivel',
+            players: matchToEdit.players || [],
+            teams: matchToEdit.teams || { teamA: [], teamB: [] }
+          });
+          
+          // Set isOrganizer based on fetched match data and currentUser
+          const userIsOrganizer = currentUser && matchToEdit.organizerUsername === currentUser.username;
+          console.log('matchToEdit.organizerUsername:', matchToEdit.organizerUsername);
+          console.log('currentUser.username:', currentUser ? currentUser.username : 'no currentUser');
+          console.log('userIsOrganizer:', userIsOrganizer);
+          setIsOrganizer(userIsOrganizer);
+        } else {
+          console.log('matchToEdit not found for id:', matchId);
+          toast({ title: "Error", description: "Partido no encontrado para editar.", variant: "destructive" });
+          navigate('/find-match');
+        }
+      } catch (error) {
+        console.error('Error fetching match:', error);
+        toast({ title: "Error", description: "Error al cargar el partido.", variant: "destructive" });
+        navigate('/find-match');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setMatchData({
-        sport: matchToEdit.sport || '',
-        playersNeeded: matchToEdit.playersNeeded || 2,
-        duration: matchToEdit.duration || 60,
-        location: matchToEdit.location || '',
-        dateTime: formattedDateTime || '',
-        requiredLevel: matchToEdit.levelRequired || 'Cualquier nivel',
-        players: matchToEdit.players || [],
-        teams: matchToEdit.teams || { teamA: [], teamB: [] }
-      });
-      
-      // Set isOrganizer based on fetched match data and currentUser
-      const userIsOrganizer = currentUser && matchToEdit.organizerUsername === currentUser.username;
-      console.log('matchToEdit.organizerUsername:', matchToEdit.organizerUsername);
-      console.log('currentUser.username:', currentUser ? currentUser.username : 'no currentUser');
-      console.log('userIsOrganizer:', userIsOrganizer);
-      setIsOrganizer(userIsOrganizer);
-
-      setLoading(false);
-
-    } else {
-      console.log('matchToEdit not found for id:', matchId);
-      toast({ title: "Error", description: "Partido no encontrado para editar.", variant: "destructive" });
-      navigate('/find-match');
-      setLoading(false);
-    }
+    fetchMatch();
   }, [matchId, navigate, toast, currentUser]);
 
   const handleInputChange = (field, value) => {
