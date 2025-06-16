@@ -3,56 +3,104 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import useUserStore from '@/store/userStore';
+import { signup, login } from '@/services/auth';
+import { getAllZones } from '@/services/zones';
+import { getSports } from '@/services/getSports';
 
 function AuthPage() {
   const [isLogin, setIsLogin] = React.useState(true);
   const [formData, setFormData] = React.useState({
-    username: '',
+    nombre: '',
     email: '',
     password: '',
+    nivel: 1,
+    zonaId: '',
+    deporteId: '',
   });
   const [isLoading, setIsLoading] = React.useState(false);
+  const [zones, setZones] = React.useState([]);
+  const [sports, setSports] = React.useState([]);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { currentUser, setUser, logout } = useUserStore();
+
+  // Cargar zonas y deportes al montar el componente
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [zonesData, sportsData] = await Promise.all([
+          getAllZones(),
+          getSports()
+        ]);
+        setZones(zonesData);
+        setSports(sportsData);
+      } catch (error) {
+        console.error('Error loading zones and sports:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las zonas y deportes.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/${isLogin ? 'login' : 'register'}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Error en la autenticación');
-      }
-
+      let response;
+      
       if (isLogin) {
-        setUser(data.user);
+        // Usar el service de login
+        response = await login({
+          email: formData.email,
+          password: formData.password
+        });
+        
+        // Actualizar el estado global del usuario
+        // El usuario está en response.data.user según la estructura del backend
+        if (response.data && response.data.user) {
+          setUser(response.data.user);
+        }
+        
         toast({
           title: "¡Bienvenido!",
           description: "Has iniciado sesión exitosamente.",
         });
         navigate('/');
       } else {
+        // Usar el service de signup
+        response = await signup({
+          nombre: formData.nombre,
+          email: formData.email,
+          password: formData.password,
+          nivel: parseInt(formData.nivel),
+          zonaId: formData.zonaId,
+          deporteId: formData.deporteId
+        });
+        
         toast({
           title: "¡Registro exitoso!",
           description: "Tu cuenta ha sido creada. Por favor, inicia sesión.",
         });
         setIsLogin(true);
-        setFormData({ username: '', email: '', password: '' });
+        setFormData({ 
+          nombre: '', 
+          email: '', 
+          password: '', 
+          nivel: 1, 
+          zonaId: '', 
+          deporteId: '' 
+        });
       }
     } catch (error) {
       toast({
@@ -67,6 +115,13 @@ function AuthPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSelectChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -89,18 +144,63 @@ function AuthPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="username">Nombre de usuario</Label>
-                <Input
-                  id="username"
-                  name="username"
-                  type="text"
-                  placeholder="johndoe"
-                  value={formData.username}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre completo</Label>
+                  <Input
+                    id="nombre"
+                    name="nombre"
+                    type="text"
+                    placeholder="Juan Pérez"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nivel">Nivel de habilidad</Label>
+                  <Select onValueChange={(value) => handleSelectChange('nivel', parseInt(value))} value={formData.nivel.toString()}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tu nivel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Principiante</SelectItem>
+                      <SelectItem value="2">2 - Intermedio</SelectItem>
+                      <SelectItem value="3">3 - Avanzado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zonaId">Zona</Label>
+                  <Select onValueChange={(value) => handleSelectChange('zonaId', value)} value={formData.zonaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una zona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {zones.map((zone) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          {zone.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deporteId">Deporte</Label>
+                  <Select onValueChange={(value) => handleSelectChange('deporteId', value)} value={formData.deporteId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un deporte" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sports.map((sport) => (
+                        <SelectItem key={sport.id} value={sport.id}>
+                          {sport.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
@@ -152,4 +252,3 @@ function AuthPage() {
 }
 
 export default AuthPage;
-  

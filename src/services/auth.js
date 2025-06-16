@@ -1,4 +1,5 @@
 import { API_URL } from "./config.js";
+import { requestFirebaseToken } from "./firebase.js";
 
 /**
  * Authentication service to handle user registration, login, and token management
@@ -7,9 +8,12 @@ import { API_URL } from "./config.js";
 /**
  * Register a new user
  * @param {Object} userData - User registration data
+ * @param {string} userData.nombre - User's full name
  * @param {string} userData.email - User's email
  * @param {string} userData.password - User's password
- * @param {string} userData.name - User's name
+ * @param {number} userData.nivel - User's skill level (1-5)
+ * @param {string} userData.zonaId - Zone ID where the user is located
+ * @param {string} userData.deporteId - Sport ID that the user practices
  * @returns {Promise<Object>} Registration response
  */
 export const signup = async (userData) => {
@@ -48,7 +52,7 @@ export const signup = async (userData) => {
  */
 export const login = async (credentials) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -58,17 +62,27 @@ export const login = async (credentials) => {
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
+    }    const data = await response.json();
 
     if (!data.success) {
       throw new Error(data.message || 'Error en el login');
-    }
-
-    // Store token in localStorage if login is successful
-    if (data.token) {
-      localStorage.setItem('authToken', data.token);
+    }    // Store token in localStorage if login is successful
+    // El token está en data.data.token según la estructura del backend
+    if (data.data && data.data.token) {
+      localStorage.setItem('authToken', data.data.token);
+      console.log("Token almacenado en localStorage:", data.data.token);
+        // Generar y enviar token de Firebase para notificaciones push
+      try {
+        const firebaseToken = await requestFirebaseToken();
+        if (firebaseToken && data.data && data.data.user && data.data.user.id) {
+          console.log("Generando token de Firebase...");
+          await updateFirebaseToken(firebaseToken, data.data.user.id);
+          console.log("Token de Firebase actualizado en el backend");
+        }
+      } catch (firebaseError) {
+        // No fallar el login si Firebase falla, solo logear el error
+        console.warn("Error configurando Firebase token:", firebaseError);
+      }
     }
 
     return data;
@@ -161,7 +175,7 @@ export const authenticatedRequest = async (endpoint, options = {}) => {
  */
 export const testProtectedEndpoint = async () => {
   try {
-    const response = await authenticatedRequest('/api/auth/protected');
+    const response = await authenticatedRequest('/auth/protected');
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -171,6 +185,37 @@ export const testProtectedEndpoint = async () => {
     return data;
   } catch (error) {
     console.error("Error accessing protected endpoint:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update Firebase token in the backend
+ * @param {string} firebaseToken - Firebase messaging token
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Update response
+ */
+export const updateFirebaseToken = async (firebaseToken, userId) => {
+  try {
+    // La ruta según el backend es PUT /usuarios/:usuarioId/firebase-token
+    const response = await authenticatedRequest(`/usuarios/${userId}/firebase-token`, {
+      method: 'PUT',
+      body: JSON.stringify({ firebaseToken }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Error actualizando token de Firebase');
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error updating Firebase token:", error);
     throw error;
   }
 };
