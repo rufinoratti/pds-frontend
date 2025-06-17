@@ -155,16 +155,9 @@ export const createMatch = async (data) => {
       duracion: data.duracion,
       direccion: data.direccion,
       cantidadJugadores: data.cantidadJugadores,
-      tipoEmparejamiento: "ZONA",
-      nivelMinimo: 1,
-      nivelMaximo: 3,
-    }
-
-    if (data.requiredLevel) {
-      requestBody = {
-        ...requestBody,
-        nivelMinimo: data.levelRequired,
-      }
+      tipoEmparejamiento: data.tipoEmparejamiento || "ZONA",
+      nivelMinimo: data.nivelMinimo,
+      nivelMaximo: data.nivelMaximo,
     }
 
     const response = await fetch(`${API_URL}/partidos`, {
