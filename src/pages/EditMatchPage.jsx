@@ -75,7 +75,7 @@ function EditMatchPage() {
           });
           
           // Set isOrganizer based on fetched match data and currentUser
-          const userIsOrganizer = currentUser && matchToEdit.organizerUsername === currentUser.username;
+          const userIsOrganizer = currentUser && matchToEdit.organizerId === currentUser.id; // Cambiar a ID
           setIsOrganizer(userIsOrganizer);
         } else {
           console.log('matchToEdit not found for id:', matchId);

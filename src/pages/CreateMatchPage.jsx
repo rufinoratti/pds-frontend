@@ -14,7 +14,20 @@ import { createMatch } from '../services/getMatches';
 import useUserStore from '@/store/userStore';
 
 //const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
-const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
+const levels = [
+  { label: "Cualquier nivel", min: 1, max: 3 },
+  { label: "Solo principiantes", min: 1, max: 1 },
+  { label: "Solo intermedios", min: 2, max: 2 },
+  { label: "Solo avanzados", min: 3, max: 3 },
+  { label: "Intermedio a avanzado", min: 2, max: 3 }
+];
+
+const tiposEmparejamiento = [
+  { value: "ZONA", label: "Por zona geográfica" },
+  { value: "NIVEL", label: "Por nivel de juego" },
+  { value: "HISTORIAL", label: "Por historial de partidos" },
+  { value: "LIBRE", label: "Libre (cualquier jugador)" }
+];
 
 function CreateMatchPage() {
   const { toast } = useToast();
@@ -23,15 +36,15 @@ function CreateMatchPage() {
   const { currentUser } = useUserStore();
   const [zones, setZones] = useState([]);
   const [sports, setSports] = useState([]);
-
   const [matchData, setMatchData] = useState({
     sport: '',
     playersNeeded: 2,
-    duration: 60,
+    duration: 120, // en minutos
     direccion: '',
     zona: '',
     dateTime: '',
-    requiredLevel: 'Cualquier nivel'
+    requiredLevel: 'Cualquier nivel',
+    tipoEmparejamiento: 'ZONA'
   });
 
   console.log(matchData)
@@ -50,50 +63,47 @@ function CreateMatchPage() {
   const handleInputChange = (field, value) => {
     setMatchData(prev => ({ ...prev, [field]: value }));
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) {
       toast({ title: "Error", description: "Debes iniciar sesión para crear un partido.", variant: "destructive" });
       navigate('/auth');
       return;
-    }
-
-    if (!matchData.sport || !matchData.playersNeeded || !matchData.duration || !matchData.zona || !matchData.dateTime) {
+    }    if (!matchData.sport || !matchData.playersNeeded || !matchData.duration || !matchData.zona || !matchData.dateTime || !matchData.direccion || !matchData.tipoEmparejamiento) {
       toast({ title: "Campos incompletos", description: "Por favor, rellena todos los campos obligatorios.", variant: "destructive" });
       return;
     }
 
+    // Encontrar el nivel seleccionado para obtener min y max
+    const selectedLevel = levels.find(l => l.label === matchData.requiredLevel);
+    
     const newMatch = {
-      organizerId: currentUser.id,
-      sport: sports.find(s => s.nombre === matchData.sport).id,
-      playersNeeded: matchData.playersNeeded,
-      duration: matchData.duration,
-      direccion: matchData.direccion,
-      zona: zones.find(z => z.nombre === matchData.zona).id,
-      hora: matchData.dateTime.split('T')[1],
+      zonaId: zones.find(z => z.nombre === matchData.zona)?.id,
+      deporteId: sports.find(s => s.nombre === matchData.sport)?.id,
+      organizadorId: currentUser.id,
       fecha: matchData.dateTime.split('T')[0],
-      levelRequired: levels.find(l => l === matchData.requiredLevel).id,
+      hora: matchData.dateTime.split('T')[1],
+      duracion: matchData.duration / 60, // convertir minutos a horas
+      direccion: matchData.direccion,
+      tipoEmparejamiento: matchData.tipoEmparejamiento,
+      nivelMinimo: selectedLevel ? selectedLevel.min : 1,
+      nivelMaximo: selectedLevel ? selectedLevel.max : 3,
+      cantidadJugadores: matchData.playersNeeded
     };
 
-    // if (newMatch.players.length >= newMatch.playersNeeded) {
-    //   newMatch.status = "Partido armado";
-    // }
-
-    // const matches = JSON.parse(localStorage.getItem('matches')) || [];
-    // matches.push(newMatch);
-    // localStorage.setItem('matches', JSON.stringify(matches));
-
-    const response = await createMatch(newMatch);
-
-
-    if (response) {
-      toast({ title: "¡Partido Creado!", description: `Tu partido de ${matchData.sport} ha sido creado exitosamente.` });
-      navigate(`/match/${response.id}`);
-    } else {
+    try {
+      const response = await createMatch(newMatch);
+      
+      if (response) {
+        toast({ title: "¡Partido Creado!", description: `Tu partido de ${matchData.sport} ha sido creado exitosamente.` });
+        navigate(`/match/${response.id}`);
+      } else {
+        toast({ title: "Error", description: "No se pudo crear el partido. Por favor intente nuevamente.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Error creating match:', error);
       toast({ title: "Error", description: "No se pudo crear el partido. Por favor intente nuevamente.", variant: "destructive" });
     }
-
   };
 
   if (!currentUser) {
@@ -163,9 +173,7 @@ function CreateMatchPage() {
                   onChange={(e) => handleInputChange('playersNeeded', parseInt(e.target.value))}
                   className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
                 />
-              </div>
-
-              <div>
+              </div>              <div>
                 <Label htmlFor="requiredLevel" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Trophy className="mr-2 h-4 w-4 text-yellow-500" /> Nivel Requerido
                 </Label>
@@ -174,7 +182,25 @@ function CreateMatchPage() {
                     <SelectValue placeholder="Selecciona el nivel requerido" />
                   </SelectTrigger>
                   <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
-                    {levels.map(l => <SelectItem key={l} value={l} className={darkMode ? 'hover:bg-gray-600' : ''}>{l}</SelectItem>)}
+                    {levels.map(l => <SelectItem key={l.label} value={l.label} className={darkMode ? 'hover:bg-gray-600' : ''}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="tipoEmparejamiento" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <ShieldPlus className="mr-2 h-4 w-4 text-purple-500" /> Tipo de Emparejamiento *
+                </Label>
+                <Select value={matchData.tipoEmparejamiento} onValueChange={(value) => handleInputChange('tipoEmparejamiento', value)}>
+                  <SelectTrigger id="tipoEmparejamiento" className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}>
+                    <SelectValue placeholder="Selecciona el tipo de emparejamiento" />
+                  </SelectTrigger>
+                  <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
+                    {tiposEmparejamiento.map(tipo => (
+                      <SelectItem key={tipo.value} value={tipo.value} className={darkMode ? 'hover:bg-gray-600' : ''}>
+                        {tipo.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

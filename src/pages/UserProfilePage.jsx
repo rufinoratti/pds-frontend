@@ -9,13 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { User, Mail, Shield, BarChart3, Edit3, Save, LogOut, CalendarCheck2, Award } from 'lucide-react';
+import useUserStore from '@/store/userStore';
+import { getSports } from '@/services/getSports';
+import { getUserMatches } from '@/services/getUserMatches';
 
 const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro", "No especificado"];
 const levels = ["Principiante", "Intermedio", "Avanzado", "No especificado"];
 
+// Función para convertir número de nivel a texto
+const getLevelText = (nivel) => {
+  switch (nivel) {
+    case 1: return 'Principiante';
+    case 2: return 'Intermedio';
+    case 3: return 'Avanzado';
+    default: return 'No especificado';
+  }
+};
+
 function UserProfilePage() {
-  const { username: profileUsername } = useParams();
-  const { currentUser, setCurrentUser, darkMode } = useOutletContext();
+  const { id: profileId } = useParams(); // Cambiar de username a id
+  const { darkMode } = useOutletContext(); // Solo obtener darkMode del context
+  const { currentUser, setUser } = useUserStore(); // Usar el store de Zustand
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -23,48 +37,85 @@ function UserProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState({ favoriteSport: '', skillLevel: '' });
   const [userMatches, setUserMatches] = useState([]);
-
+  const [deportes, setDeportes] = useState([]);
+  const [userSportName, setUserSportName] = useState('No especificado');
   useEffect(() => {
     if (!currentUser) {
       navigate('/auth');
       return;
-    }
+    }    // Si estamos viendo nuestro propio perfil
+    if (currentUser.id === profileId) {
+      setProfileData(currentUser);      // Cargar deportes desde la API
+      const loadSports = async () => {
+        try {
+          const sportsData = await getSports();
+          setDeportes(sportsData);
+          
+          // Encontrar el nombre del deporte del usuario
+          let sportName = 'No especificado';
+          if (currentUser.deporteId) {
+            const userSport = sportsData.find(sport => sport.id === currentUser.deporteId);
+            sportName = userSport ? userSport.nombre : 'No especificado';
+          }
+          setUserSportName(sportName);
+          
+          // Obtener el nivel de juego real del usuario
+          const userLevel = getLevelText(currentUser.nivel);
+          
+          // Actualizar editableData con los valores reales
+          setEditableData({ 
+            favoriteSport: currentUser.deporteId || '', 
+            skillLevel: userLevel
+          });
+          
+        } catch (error) {
+          console.error('Error cargando deportes:', error);
+          setUserSportName('No especificado');
+          
+          // Fallback para editableData en caso de error
+          const userLevel = getLevelText(currentUser.nivel);
+          setEditableData({ 
+            favoriteSport: '', 
+            skillLevel: userLevel
+          });
+        }
+      };
 
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const viewingUser = users.find(u => u.username === profileUsername);
+      // Cargar partidos del usuario desde la API
+      const loadUserMatches = async () => {
+        try {
+          const matchesData = await getUserMatches(currentUser.id);
+          console.log('Partidos del usuario cargados:', matchesData);
+          setUserMatches(matchesData.slice(0, 5)); // Mostrar los últimos 5 partidos
+        } catch (error) {
+          console.error('Error cargando partidos del usuario:', error);
+          setUserMatches([]); // Array vacío en caso de error
+        }
+      };
 
-    if (viewingUser) {
-      setProfileData(viewingUser);
-      if (currentUser && currentUser.username === profileUsername) {
-        setEditableData({ 
-          favoriteSport: viewingUser.favoriteSport || 'No especificado', 
-          skillLevel: viewingUser.skillLevel || 'No especificado' 
-        });
-      }
-      // Load user's matches (organized or joined)
-      const allMatches = JSON.parse(localStorage.getItem('matches')) || [];
-      const filteredMatches = allMatches.filter(m => 
-        m.organizerUsername === viewingUser.username || 
-        (m.players && m.players.some(p => p.username === viewingUser.username))
-      );
-      setUserMatches(filteredMatches.slice(0, 5)); // Show recent 5
+      // Cargar deportes y partidos
+      loadSports();
+      loadUserMatches();
+      
+      // TODO: Cargar matches del usuario desde la API
+      // Por ahora, array vacío hasta implementar la API de matches
+      setUserMatches([]);
     } else {
-      toast({ title: "Error", description: "Perfil no encontrado.", variant: "destructive" });
+      // TODO: Implementar API para obtener datos de otros usuarios      // Por ahora, mostrar error
+      toast({ title: "Error", description: "Solo puedes ver tu propio perfil por ahora.", variant: "destructive" });
       navigate('/');
     }
-  }, [profileUsername, currentUser, navigate, toast]);
-
+  }, [profileId, currentUser, navigate, toast]);
   const handleEditToggle = () => {
     if (isEditing) { // Saving changes
-      const users = JSON.parse(localStorage.getItem('users')) || [];
-      const userIndex = users.findIndex(u => u.username === currentUser.username);
-      if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...editableData };
-        localStorage.setItem('users', JSON.stringify(users));
-        setCurrentUser(users[userIndex]); // Update context/global state
-        setProfileData(users[userIndex]); // Update local profile view
-        toast({ title: "Perfil Actualizado", description: "Tus cambios han sido guardados." });
-      }
+      // Actualizar los datos del usuario actual
+      const updatedUser = { ...currentUser, ...editableData };
+      setUser(updatedUser); // Usar el store de Zustand
+      setProfileData(updatedUser); // Update local profile view
+      toast({ title: "Perfil Actualizado", description: "Tus cambios han sido guardados." });
+      
+      // TODO: Aquí deberías hacer una llamada a la API para actualizar en el backend
+      // Por ejemplo: await updateUserProfile(currentUser.id, editableData);
     }
     setIsEditing(!isEditing);
   };
@@ -84,7 +135,7 @@ function UserProfilePage() {
     return <div className={`text-center py-10 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Cargando perfil...</div>;
   }
   
-  const isOwnProfile = currentUser && currentUser.username === profileData.username;
+  const isOwnProfile = currentUser && currentUser.id === profileData.id; // Cambiar a ID
 
   return (
     <motion.div
@@ -97,7 +148,7 @@ function UserProfilePage() {
         <CardHeader className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
           <div className="relative">
              <img  
-                alt={profileData.username} 
+                alt={profileData.nombre || profileData.username} 
                 class={`h-24 w-24 sm:h-32 sm:w-32 rounded-full object-cover border-4 ${darkMode ? 'border-sky-500' : 'border-blue-500'} shadow-lg`}
                  src="https://images.unsplash.com/photo-1515381881585-7bd8e76ebf92" />
             {isOwnProfile && (
@@ -108,7 +159,7 @@ function UserProfilePage() {
             )}
           </div>
           <div className="text-center sm:text-left">
-            <CardTitle className={`text-4xl font-bold ${darkMode ? 'text-sky-300' : 'text-blue-700'}`}>{profileData.username}</CardTitle>
+            <CardTitle className={`text-4xl font-bold ${darkMode ? 'text-sky-300' : 'text-blue-700'}`}>{profileData.nombre || profileData.username}</CardTitle>
             <CardDescription className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <Mail className="inline mr-2 h-5 w-5" />{profileData.email}
             </CardDescription>
@@ -122,13 +173,16 @@ function UserProfilePage() {
                 <Select value={editableData.favoriteSport} onValueChange={(value) => handleInputChange('favoriteSport', value)}>
                   <SelectTrigger id="favoriteSport" className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}>
                     <SelectValue placeholder="Elige tu deporte" />
-                  </SelectTrigger>
-                  <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
-                    {sports.map(s => <SelectItem key={s} value={s} className={darkMode ? 'hover:bg-gray-600' : ''}>{s}</SelectItem>)}
+                  </SelectTrigger>                  <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
+                    {deportes.map(deporte => 
+                      <SelectItem key={deporte.id} value={deporte.id} className={darkMode ? 'hover:bg-gray-600' : ''}>
+                        {deporte.nombre}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               ) : (
-                <p className={`text-lg font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{profileData.favoriteSport || 'No especificado'}</p>
+                <p className={`text-lg font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{userSportName}</p>
               )}
             </div>
             <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700/50' : 'bg-gray-100'}`}>
@@ -143,7 +197,7 @@ function UserProfilePage() {
                   </SelectContent>
                 </Select>
               ) : (
-                <p className={`text-lg font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{profileData.skillLevel || 'No especificado'}</p>
+                <p className={`text-lg font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{getLevelText(profileData?.nivel)}</p>
               )}
             </div>
           </div>
@@ -171,15 +225,53 @@ function UserProfilePage() {
           <CardDescription className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
             Partidos organizados o en los que {isOwnProfile ? 'has participado' : 'ha participado'} recientemente.
           </CardDescription>
-        </CardHeader>
-        <CardContent>
+        </CardHeader>        <CardContent>
           {userMatches.length > 0 ? (
             <ul className="space-y-4">
               {userMatches.map(match => (
                 <li key={match.id} className={`p-4 rounded-lg flex justify-between items-center ${darkMode ? 'bg-gray-700/50 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'} transition-colors`}>
                   <div>
-                    <Link to={`/match/${match.id}`} className={`font-semibold text-lg ${darkMode ? 'text-sky-300 hover:text-sky-200' : 'text-blue-600 hover:text-blue-500'}`}>{match.sport} en {match.location}</Link>
-                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(match.dateTime).toLocaleDateString()} - Estado: <span className={`font-medium ${match.status === 'Cancelado' ? (darkMode ? 'text-red-400' : 'text-red-600') : (darkMode ? 'text-green-400' : 'text-green-600')}`}>{match.status}</span></p>
+                    <Link 
+                      to={`/match/${match.id}`} 
+                      className={`font-semibold text-lg ${darkMode ? 'text-sky-300 hover:text-sky-200' : 'text-blue-600 hover:text-blue-500'}`}
+                    >
+                      {match.deporte?.nombre || 'Deporte'} en {match.direccion || 'Ubicación'}
+                    </Link>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {match.fecha ? new Date(match.fecha).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      }) : 'Fecha no disponible'} 
+                      {match.hora && ` a las ${match.hora}`}
+                      {' - '}
+                      <span className="font-medium">
+                        {match.organizadorId === currentUser.id ? 'Organizador' : 'Participante'}
+                      </span>
+                      {match.estado && ` - `}
+                      {match.estado && (
+                        <span className={`font-medium px-2 py-1 rounded text-xs ${
+                          match.estado === 'CANCELADO' ? 
+                            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
+                          match.estado === 'CONFIRMADO' ?
+                            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          match.estado === 'EN_JUEGO' ?
+                            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                          match.estado === 'FINALIZADO' ?
+                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' :
+                          match.estado === 'ARMADO' ?
+                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                            'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                        }`}>
+                          {match.estado.replace('_', ' ')}
+                        </span>
+                      )}
+                    </p>
+                    {match.zona && (
+                      <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                        📍 {match.zona.nombre} • {match.cantidadJugadores} jugadores • {match.jugadoresConfirmados} confirmados
+                      </p>
+                    )}
                   </div>
                   <Button variant="ghost" size="sm" asChild>
                     <Link to={`/match/${match.id}`}>Ver</Link>
@@ -188,7 +280,12 @@ function UserProfilePage() {
               ))}
             </ul>
           ) : (
-            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>{isOwnProfile ? 'Aún no has participado ni organizado partidos.' : 'Este usuario aún no tiene actividad en partidos.'} <Link to="/find-match" className={`${darkMode ? 'text-sky-400 hover:underline' : 'text-blue-600 hover:underline'}`}>¡Busca uno ahora!</Link></p>
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+              {isOwnProfile ? 'Aún no has participado ni organizado partidos.' : 'Este usuario aún no tiene actividad en partidos.'} 
+              <Link to="/find-match" className={`${darkMode ? 'text-sky-400 hover:underline' : 'text-blue-600 hover:underline'}`}>
+                ¡Busca uno ahora!
+              </Link>
+            </p>
           )}
         </CardContent>
       </Card>

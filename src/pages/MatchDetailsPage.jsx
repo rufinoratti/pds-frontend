@@ -316,7 +316,7 @@ function MatchDetailsPage() {
     );
   }
 
-  const playersRemaining = match.cantidadJugadores - match.participantes.length;
+  const playersRemaining = match.cantidadJugadores - match.jugadoresConfirmados;
 
   return (
     <motion.div
@@ -476,8 +476,7 @@ function MatchDetailsPage() {
                 <span
                   className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-800"
                     }`}
-                >
-                  {match.participantes.length} / {match.cantidadJugadores}{" "}
+                >                  {match.jugadoresConfirmados} / {match.cantidadJugadores}{" "}
                   confirmados
                 </span>
               </div>

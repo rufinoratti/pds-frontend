@@ -146,23 +146,18 @@ export const createMatch = async (data) => {
     }
 
     const requestBody = {
-      deporteId: data.sport,
-      zonaId: data.zona,
-      organizadorId: data.organizerId,
-      cantidadJugadores: data.playersNeeded,
+      zonaId: data.zonaId,
+      deporteId: data.deporteId,
+      organizadorId: data.organizadorId,
       fecha: data.fecha,
       hora: data.hora,
-      duracion: data.duration / 60,
+      duracion: data.duracion,
       direccion: data.direccion,
-      tipoEmparejamiento: "ZONA",
-    }
-
-    if (data.requiredLevel) {
-      requestBody = {
-        ...requestBody,
-        nivelMinimo: data.levelRequired,
-      }
-    }
+      tipoEmparejamiento: data.tipoEmparejamiento,
+      nivelMinimo: data.nivelMinimo,
+      nivelMaximo: data.nivelMaximo,
+      cantidadJugadores: data.cantidadJugadores
+    };
 
     const response = await fetch(`${API_URL}/partidos`, {
       method: 'POST',
