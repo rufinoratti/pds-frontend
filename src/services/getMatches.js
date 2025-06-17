@@ -147,13 +147,12 @@ export const createMatch = async (data) => {
     }
 
     const requestBody = {
-      deporteId: data.sport,
-      zonaId: data.zona,
-      organizadorId: data.organizerId,
-      cantidadJugadores: data.playersNeeded,
+      zonaId: data.zonaId,
+      deporteId: data.deporteId,
+      organizadorId: data.organizadorId,
       fecha: data.fecha,
       hora: data.hora,
-      duracion: data.duration / 60,
+      duracion: data.duracion,
       direccion: data.direccion,
       tipoEmparejamiento: "ZONA",
       nivelMinimo: 1,
@@ -180,15 +179,25 @@ export const createMatch = async (data) => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const responseData = await response.json();
-
-    if (!responseData.success) {
+    const responseData = await response.json();    if (!responseData.success) {
       throw new Error(responseData.message);
     }
 
-    return responseData.data;
+    const createdMatch = responseData.data;
+    
+    // Ejecutar emparejamiento después de crear el partido
+    try {
+      await executeMatching(createdMatch.id, data.tipoEmparejamiento);
+      console.log("Emparejamiento ejecutado correctamente");
+    } catch (matchingError) {
+      console.error("Error ejecutando emparejamiento:", matchingError);
+      // No lanzo el error para que la creación del partido no falle
+      // El partido se creó correctamente, solo falló el emparejamiento
+    }
+
+    return createdMatch;
   } catch (error) {
-    console.error("Error leaving match:", error);
+    console.error("Error creating match:", error);
     throw error;
   }
 };
@@ -285,4 +294,87 @@ export const endMatch = async (matchId) => {
     console.error("Error ending match:", error);
     throw error;
   }
-}
+};
+
+/**
+ * Confirma un partido cambiando su estado de "ARMADO" a "CONFIRMADO"
+ * @param {string} matchId - ID del partido a confirmar
+ * @returns {Promise<Object>} Respuesta del servidor
+ */
+export const confirmMatch = async (matchId) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_URL}/partidos/${matchId}/cambiar-estado`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nuevoEstado: "CONFIRMADO"
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+
+    if (!responseData.success) {
+      throw new Error(responseData.message);
+    }
+
+    return responseData;
+  } catch (error) {
+    console.error("Error confirming match:", error);
+    throw error;
+  }
+};
+
+/**
+ * Ejecuta el emparejamiento para un partido específico
+ * @param {string} matchId - ID del partido
+ * @param {string} tipoEstrategia - Tipo de estrategia: ZONA, HISTORIAL, NIVEL
+ * @returns {Promise<Object>} Respuesta del servidor
+ */
+export const executeMatching = async (matchId, tipoEstrategia) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_URL}/emparejamiento/ejecutar/${matchId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        tipoEstrategia: tipoEstrategia
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+
+    if (!responseData.success) {
+      throw new Error(responseData.message);
+    }
+
+    return responseData;
+  } catch (error) {
+    console.error("Error executing matching:", error);
+    throw error;
+  }
+};

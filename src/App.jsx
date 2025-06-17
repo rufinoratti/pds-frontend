@@ -22,7 +22,7 @@ function App() {
           <Route path="find-match" element={<FindMatchPage />} />
           <Route path="create-match" element={<CreateMatchPage />} />
           <Route path="match/:matchId" element={<MatchDetailsPage />} />
-          <Route path="profile/:username" element={<UserProfilePage />} /> 
+          <Route path="profile/:id" element={<UserProfilePage />} /> 
           <Route path="edit-match/:matchId" element={<EditMatchPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

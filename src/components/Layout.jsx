@@ -91,7 +91,7 @@ function Layout() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className={`rounded-full h-9 w-9 p-0 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-sky-100'}`}>
                       <img  
-                        alt={currentUser.username || "Avatar de Usuario"} 
+                        alt={currentUser?.nombre || "Avatar de Usuario"} 
                         className="h-8 w-8 rounded-full"
                         src="https://images.unsplash.com/flagged/photo-1608632359963-5828fa3b4141" />
                     </Button>
@@ -99,8 +99,7 @@ function Layout() {
                   <DropdownMenuContent align="end" className={darkMode ? 'bg-gray-800 border-gray-700' : ''}>
                     <DropdownMenuLabel className={darkMode ? 'text-gray-300' : ''}>Mi Cuenta</DropdownMenuLabel>
                     <DropdownMenuSeparator className={darkMode ? 'bg-gray-700' : ''}/>
-                    <DropdownMenuItem className={darkMode ? 'hover:bg-gray-700 text-gray-300' : ''} onClick={() => navigate(`/profile/${currentUser.username}`)}>Perfil</DropdownMenuItem>
-                    <DropdownMenuItem className={darkMode ? 'hover:bg-gray-700 text-gray-300' : ''}>Configuración</DropdownMenuItem>
+                    <DropdownMenuItem className={darkMode ? 'hover:bg-gray-700 text-gray-300' : ''} onClick={() => navigate(`/profile/${currentUser?.id}`)}>Perfil</DropdownMenuItem>
                     <DropdownMenuSeparator className={darkMode ? 'bg-gray-700' : ''}/>
                     <DropdownMenuItem onClick={handleLogout} className={`text-red-500 ${darkMode ? 'hover:bg-red-700/20' : 'hover:bg-red-500/10'}`}>
                       <LogOut className="mr-2 h-4 w-4" />

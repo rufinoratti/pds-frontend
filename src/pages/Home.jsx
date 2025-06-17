@@ -192,7 +192,7 @@ function Home() {
               darkMode ? "text-sky-400" : "text-blue-700"
             }`}
           >
-            ¡Hola, {currentUser.username}!
+            ¡Hola, {currentUser.nombre}!
           </h2>
           <p className={`${darkMode ? "text-gray-300" : "text-gray-700"} mb-6`}>
             ¿Listo para tu próximo partido? Revisa los partidos disponibles o
