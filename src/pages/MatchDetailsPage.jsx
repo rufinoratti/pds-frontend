@@ -48,38 +48,37 @@ import {
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { endMatch, getMatchById, joinMatch, leaveMatch } from "../services/getMatches";
+import { endMatch, getMatchById, joinMatch, leaveMatch, confirmMatch } from "../services/getMatches";
 import useUserStore from "@/store/userStore";
 
-const MatchStatusBadge = ({ status, darkMode }) => {
-  let bgColor, textColor, Icon;
+const MatchStatusBadge = ({ status, darkMode }) => {  let bgColor, textColor, Icon;
   switch (status) {
-    case "Necesitamos jugadores":
+    case "NECESITAMOS_JUGADORES":
       bgColor = darkMode ? "bg-yellow-500/20" : "bg-yellow-100";
       textColor = darkMode ? "text-yellow-400" : "text-yellow-600";
       Icon = ShieldAlert;
       break;
-    case "Partido armado":
+    case "ARMADO":
       bgColor = darkMode ? "bg-green-500/20" : "bg-green-100";
       textColor = darkMode ? "text-green-400" : "text-green-600";
       Icon = ShieldCheck;
       break;
-    case "Confirmado":
+    case "CONFIRMADO":
       bgColor = darkMode ? "bg-blue-500/20" : "bg-blue-100";
       textColor = darkMode ? "text-blue-400" : "text-blue-600";
       Icon = CheckCircle;
       break;
-    case "En juego":
+    case "EN_JUEGO":
       bgColor = darkMode ? "bg-purple-500/20" : "bg-purple-100";
       textColor = darkMode ? "text-purple-400" : "text-purple-600";
       Icon = Clock;
       break;
-    case "Finalizado":
+    case "FINALIZADO":
       bgColor = darkMode ? "bg-gray-500/20" : "bg-gray-100";
       textColor = darkMode ? "text-gray-400" : "text-gray-600";
       Icon = Trophy;
       break;
-    case "Cancelado":
+    case "CANCELADO":
       bgColor = darkMode ? "bg-red-500/20" : "bg-red-100";
       textColor = darkMode ? "text-red-400" : "text-red-600";
       Icon = XCircle;
@@ -221,18 +220,29 @@ function MatchDetailsPage() {
       navigate("/find-match");
     }
   };
-
-  const handleConfirmMatch = () => {
+  const handleConfirmMatch = async () => {
     if (!isOrganizer) return;
-    // This would typically involve checking if all players confirmed via notifications
-    // For now, we just change the status
-    const updatedMatch = { ...match, estado: "CONFIRMADO" };
-    updateMatchInStorage(updatedMatch);
-    toast({
-      title: "Partido Confirmado",
-      description: "El partido ha sido confirmado. ¡A jugar!",
-      variant: "default",
-    });
+    
+    try {
+      await confirmMatch(matchId);
+      
+      // Actualizar el estado local
+      const updatedMatch = { ...match, estado: "CONFIRMADO" };
+      setMatch(updatedMatch);
+      
+      toast({
+        title: "Partido Confirmado",
+        description: "El partido ha sido confirmado. ¡A jugar!",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error confirmando partido:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo confirmar el partido. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStartMatch = () => {
@@ -650,8 +660,7 @@ function MatchDetailsPage() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-              {match.estado === "PARTIDO_ARMADO" && (
+              </Dialog>              {match.estado === "ARMADO" && (
                 <Button
                   onClick={handleConfirmMatch}
                   className={`${darkMode

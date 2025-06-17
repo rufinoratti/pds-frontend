@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { User, Mail, Shield, BarChart3, Edit3, Save, LogOut, CalendarCheck2, Award } from 'lucide-react';
+import { User, Mail, Shield, BarChart3, Edit3, Save, LogOut, CalendarCheck2, Award, Mail as MailIcon, Clock } from 'lucide-react';
 import useUserStore from '@/store/userStore';
 import { getSports } from '@/services/getSports';
 import { getUserMatches } from '@/services/getUserMatches';
+import { getUserInvitations } from '@/services/invitations';
 
 const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro", "No especificado"];
 const levels = ["Principiante", "Intermedio", "Avanzado", "No especificado"];
@@ -32,13 +33,14 @@ function UserProfilePage() {
   const { currentUser, setUser } = useUserStore(); // Usar el store de Zustand
   const { toast } = useToast();
   const navigate = useNavigate();
-
   const [profileData, setProfileData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState({ favoriteSport: '', skillLevel: '' });
   const [userMatches, setUserMatches] = useState([]);
   const [deportes, setDeportes] = useState([]);
   const [userSportName, setUserSportName] = useState('No especificado');
+  const [invitations, setInvitations] = useState([]);
+  const [loadingInvitations, setLoadingInvitations] = useState(false);
   useEffect(() => {
     if (!currentUser) {
       navigate('/auth');
@@ -79,9 +81,7 @@ function UserProfilePage() {
             skillLevel: userLevel
           });
         }
-      };
-
-      // Cargar partidos del usuario desde la API
+      };      // Cargar partidos del usuario desde la API
       const loadUserMatches = async () => {
         try {
           const matchesData = await getUserMatches(currentUser.id);
@@ -93,9 +93,25 @@ function UserProfilePage() {
         }
       };
 
-      // Cargar deportes y partidos
+      // Cargar invitaciones del usuario
+      const loadUserInvitations = async () => {
+        setLoadingInvitations(true);
+        try {
+          const invitationsData = await getUserInvitations(currentUser.id);
+          console.log('Invitaciones del usuario cargadas:', invitationsData);
+          setInvitations(invitationsData || []);
+        } catch (error) {
+          console.error('Error cargando invitaciones del usuario:', error);
+          setInvitations([]);
+        } finally {
+          setLoadingInvitations(false);
+        }
+      };
+
+      // Cargar deportes, partidos e invitaciones
       loadSports();
       loadUserMatches();
+      loadUserInvitations();
       
       // TODO: Cargar matches del usuario desde la API
       // Por ahora, array vacío hasta implementar la API de matches
@@ -123,7 +139,6 @@ function UserProfilePage() {
   const handleInputChange = (field, value) => {
     setEditableData(prev => ({ ...prev, [field]: value }));
   };
-  
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
@@ -286,9 +301,125 @@ function UserProfilePage() {
                 ¡Busca uno ahora!
               </Link>
             </p>
-          )}
-        </CardContent>
+          )}        </CardContent>
       </Card>
+
+      {/* Sección de Invitaciones - Solo para el propio perfil */}
+      {isOwnProfile && (
+        <Card className={darkMode ? 'bg-gray-800/70 border-gray-700 backdrop-blur-md' : 'bg-white/70 border-gray-200 backdrop-blur-md shadow-xl'}>
+          <CardHeader>
+            <CardTitle className={`flex items-center text-2xl font-semibold ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>
+              <MailIcon className="mr-3 h-6 w-6"/> Invitaciones a Partidos
+              {invitations.length > 0 && (
+                <span className={`ml-2 px-2 py-1 text-xs rounded-full ${darkMode ? 'bg-sky-500 text-white' : 'bg-blue-500 text-white'}`}>
+                  {invitations.length}
+                </span>
+              )}
+            </CardTitle>
+            <CardDescription className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+              Invitaciones pendientes para unirte a partidos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingInvitations ? (
+              <div className={`text-center py-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <Clock className="mx-auto h-8 w-8 animate-spin mb-2" />
+                Cargando invitaciones...
+              </div>
+            ) : invitations.length > 0 ? (              <ul className="space-y-4">
+                {invitations.map(invitation => (
+                  <li key={invitation.id}>
+                    {invitation.Partido?.id ? (
+                      <Link 
+                        to={`/match/${invitation.Partido.id}`}
+                        className={`block p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
+                          darkMode 
+                            ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700/70 hover:border-gray-500' 
+                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <h4 className={`font-semibold text-lg ${darkMode ? 'text-sky-300' : 'text-blue-600'}`}>
+                                {invitation.Partido?.Deporte?.nombre || 'Partido'} en {invitation.Partido?.direccion || 'Ubicación'}
+                              </h4>
+                            </div>
+                            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {invitation.Partido?.fecha ? new Date(invitation.Partido.fecha).toLocaleDateString('es-ES', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              }) : 'Fecha no disponible'}
+                              {invitation.Partido?.hora && ` a las ${invitation.Partido.hora}`}
+                            </p>
+                            {invitation.Partido?.organizador && (
+                              <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                Invitado por: {invitation.Partido.organizador.nombre}
+                              </p>
+                            )}
+                            {invitation.Partido?.Zona && (
+                              <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                📍 {invitation.Partido.Zona.nombre}
+                                {invitation.Partido.cantidadJugadores && ` • ${invitation.Partido.cantidadJugadores} jugadores necesarios`}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center">
+                            <span className={`text-sm font-medium ${darkMode ? 'text-sky-400' : 'text-blue-600'}`}>
+                              Ver detalles →
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <h4 className={`font-semibold text-lg ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {invitation.Partido?.Deporte?.nombre || 'Partido'} en {invitation.Partido?.direccion || 'Ubicación'}
+                              </h4>
+                            </div>
+                            <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                              {invitation.Partido?.fecha ? new Date(invitation.Partido.fecha).toLocaleDateString('es-ES', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              }) : 'Fecha no disponible'}
+                              {invitation.Partido?.hora && ` a las ${invitation.Partido.hora}`}
+                            </p>
+                            {invitation.Partido?.organizador && (
+                              <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                Invitado por: {invitation.Partido.organizador.nombre}
+                              </p>
+                            )}
+                            {invitation.Partido?.Zona && (
+                              <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                📍 {invitation.Partido.Zona.nombre}
+                                {invitation.Partido.cantidadJugadores && ` • ${invitation.Partido.cantidadJugadores} jugadores necesarios`}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center">
+                            <span className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              Partido no disponible
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                No tienes invitaciones pendientes.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Placeholder for achievements or stats */}
       <Card className={darkMode ? 'bg-gray-800/70 border-gray-700 backdrop-blur-md' : 'bg-white/70 border-gray-200 backdrop-blur-md shadow-xl'}>
