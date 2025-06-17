@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+const LEVELS = ['Principiante', 'Intermedio', 'Avanzado'];
+
 export const useMatchFilters = (initialFilters = {}) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -13,11 +15,13 @@ export const useMatchFilters = (initialFilters = {}) => {
     const queryParams = new URLSearchParams(location.search);
     const sportParam = queryParams.get('sport');
     const locationParam = queryParams.get('location');
+    const levelParam = queryParams.get('level');
 
     const newFilters = {
       ...initialFilters,
       sport: sportParam || initialFilters.sport,
       location: locationParam || initialFilters.location,
+      requiredLevel: levelParam ? LEVELS[parseInt(levelParam) - 1] : initialFilters.requiredLevel,
     };
 
     setFilters(newFilters);
@@ -45,6 +49,16 @@ export const useMatchFilters = (initialFilters = {}) => {
         });
       }
 
+      // Filter by level
+      if (filters.requiredLevel && filters.requiredLevel !== 'Cualquier nivel') {
+        const levelIndex = LEVELS.indexOf(filters.requiredLevel);
+        if (levelIndex !== -1) {
+          filtered = filtered.filter(match => {
+            return match.nivelMinimo === levelIndex + 1;
+          });
+        }
+      }
+
       setFilteredMatches(filtered);
     }
   }, [filters, allMatches]);
@@ -59,6 +73,13 @@ export const useMatchFilters = (initialFilters = {}) => {
     
     if (newFilters.location) {
       queryParams.set('location', newFilters.location);
+    }
+
+    if (newFilters.requiredLevel && newFilters.requiredLevel !== 'Cualquier nivel') {
+      const levelIndex = LEVELS.indexOf(newFilters.requiredLevel);
+      if (levelIndex !== -1) {
+        queryParams.set('level', (levelIndex + 1).toString());
+      }
     }
 
     const newUrl = queryParams.toString() 
