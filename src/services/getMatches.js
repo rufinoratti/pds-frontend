@@ -154,6 +154,7 @@ export const createMatch = async (data) => {
       hora: data.hora,
       duracion: data.duracion,
       direccion: data.direccion,
+      cantidadJugadores: data.cantidadJugadores,
       tipoEmparejamiento: "ZONA",
       nivelMinimo: 1,
       nivelMaximo: 3,
