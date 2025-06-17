@@ -11,12 +11,12 @@ export const getAllMatches = async () => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    
+
     if (!data.success) {
       throw new Error(data.message);
     }
 
-    return data.data;
+    return data.data?.filter(match => match.estado !== "FINALIZADO" && match.estado !== "CANCELADO");
   } catch (error) {
     console.error("Error fetching matches:", error);
     throw error;
@@ -35,7 +35,7 @@ export const getMatchById = async (matchId) => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    
+
     if (!data.success) {
       throw new Error(data.message);
     }
@@ -45,7 +45,7 @@ export const getMatchById = async (matchId) => {
     console.error("Error fetching match:", error);
     throw error;
   }
-}; 
+};
 
 
 /**
@@ -55,14 +55,21 @@ export const getMatchById = async (matchId) => {
  */
 export const joinMatch = async (matchId, userId, team) => {
   try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
     const response = await fetch(`${API_URL}/partidos/${matchId}/unirse`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        usuarioId:userId,
-        equipo:team
+        usuarioId: userId,
+        equipo: team
       })
     });
 
@@ -71,9 +78,9 @@ export const joinMatch = async (matchId, userId, team) => {
     }
 
     const data = await response.json();
-    
+
     if (!data.success) {
-      throw new Error(data.message); 
+      throw new Error(data.message);
     }
 
     return data.data;
@@ -82,3 +89,197 @@ export const joinMatch = async (matchId, userId, team) => {
     throw error;
   }
 };
+
+/**
+ * Returns if the user left the match correctly or not
+ * @param {string} matchId, userId, team - The ID of the match to fetch, the user id and the team
+  returns 200 if the user left correctly or 400 if the user did not join correctly
+ */
+export const leaveMatch = async (matchId, userId) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_URL}/partidos/${matchId}/abandonar`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        usuarioId: userId,
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error leaving match:", error);
+    throw error;
+  }
+};
+
+
+/**
+ * Returns if the match was correctly created or not.
+ * @param {string} data 
+ * Returns 200 if the match was correctly created or 400 if the match was not created correctly
+ */
+export const createMatch = async (data) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const requestBody = {
+      deporteId: data.sport,
+      zonaId: data.zona,
+      organizadorId: data.organizerId,
+      cantidadJugadores: data.playersNeeded,
+      fecha: data.fecha,
+      hora: data.hora,
+      duracion: data.duration / 60,
+      direccion: data.direccion,
+      tipoEmparejamiento: "ZONA",
+    }
+
+    if (data.requiredLevel) {
+      requestBody = {
+        ...requestBody,
+        nivelMinimo: data.levelRequired,
+      }
+    }
+
+    const response = await fetch(`${API_URL}/partidos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+
+    if (!responseData.success) {
+      throw new Error(responseData.message);
+    }
+
+    return responseData.data;
+  } catch (error) {
+    console.error("Error leaving match:", error);
+    throw error;
+  }
+};
+
+/**
+ * Returns if the match was correctly updated or not.
+ * @param {string} data 
+ * Returns 200 if the match was correctly updated or 400 if the match was not updated correctly
+ */
+export const updateMatch = async (data) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const requestBody = {
+      deporteId: data.sport,
+      zonaId: data.zona,
+      organizadorId: data.organizerId,
+      cantidadJugadores: data.playersNeeded,
+      fecha: data.fecha,
+      hora: data.hora,
+      duracion: data.duration / 60,
+      direccion: data.direccion,
+      tipoEmparejamiento: "ZONA",
+    }
+
+    const response = await fetch(`${API_URL}/partidos/${data.matchId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    console.log('response', response);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+
+    if (!responseData.success) {
+      throw new Error(responseData.message);
+    }
+
+    return responseData.data;
+  } catch (error) {
+    console.error("Error updating match:", error);
+    throw error;
+  }
+}
+
+
+/**
+ * Returns if the match was correctly ended or not.
+ * @param {string} matchId 
+ * Returns 200 if the match was correctly ended or 400 if the match was not ended correctly
+ */
+export const endMatch = async (matchId) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_URL}/partidos/${matchId}/cambiar-estado`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nuevoEstado: "CANCELADO"
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+
+    if (!responseData.success) {
+      throw new Error(responseData.message);
+    }
+
+    return responseData;
+  } catch (error) {
+    console.error("Error ending match:", error);
+    throw error;
+  }
+}

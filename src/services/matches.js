@@ -15,8 +15,8 @@ export const getAllMatches = async () => {
     if (!data.success) {
       throw new Error(data.message);
     }
-
-    return data.data;
+    console.log('data', data.data);
+    return data.data?.filter(match => match.estado !== "FINALIZADO" && match.estado !== "CANCELADO");
   } catch (error) {
     console.error("Error fetching all matches:", error);
     throw error;

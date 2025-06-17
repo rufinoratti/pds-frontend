@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { getMatchById, joinMatch } from "../services/getMatches";
+import { endMatch, getMatchById, joinMatch, leaveMatch } from "../services/getMatches";
 import useUserStore from "@/store/userStore";
 
 const MatchStatusBadge = ({ status, darkMode }) => {
@@ -111,41 +111,42 @@ function MatchDetailsPage() {
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [result, setResult] = useState({ teamAScore: "", teamBScore: "" });
   const [matchesLoading, setMatchesLoading] = useState(true);
-  useEffect(() => {
-    const fetchMatch = async () => {
-      try {
-        const matchData = await getMatchById(matchId);
-        if (matchData) {
-          setMatch(matchData);
-          if (currentUser?.id) {
-            setIsPlayerJoined(matchData.participantes?.some(p => p.usuarioId === currentUser.id));
-            setIsOrganizer(matchData.organizadorId === currentUser.id);
-          }
-        } else {
-          toast({
-            title: "Error",
-            description: "Partido no encontrado.",
-            variant: "destructive",
-          });
-          navigate("/find-match");
+
+  const fetchMatch = async () => {
+    try {
+      const matchData = await getMatchById(matchId);
+      if (matchData) {
+        setMatch(matchData);
+        if (currentUser?.id) {
+          setIsPlayerJoined(matchData.participantes?.some(p => p.usuarioId === currentUser.id));
+          setIsOrganizer(matchData.organizadorId === currentUser.id);
         }
-      } catch (error) {
-        console.error("Error fetching match:", error);
+      } else {
         toast({
           title: "Error",
-          description: "Error al cargar el partido.",
+          description: "Partido no encontrado.",
           variant: "destructive",
         });
         navigate("/find-match");
-      } finally {
-        setMatchesLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching match:", error);
+      toast({
+        title: "Error",
+        description: "Error al cargar el partido.",
+        variant: "destructive",
+      });
+      navigate("/find-match");
+    } finally {
+      setMatchesLoading(false);
+    }
+  };
+
+  useEffect(() => {
 
     fetchMatch();
   }, [matchId, currentUser, toast, navigate]);
 
-  console.log(currentUser); 
   const updateMatchInStorage = (updatedMatch) => {
     const storedMatches = JSON.parse(localStorage.getItem("matches")) || [];
     const matchIndex = storedMatches.findIndex((m) => m.id === updatedMatch.id);
@@ -167,24 +168,28 @@ function MatchDetailsPage() {
       return;
     }
 
-    let updatedMatch = { ...match };
-
     if (isPlayerJoined) {
       // Leave match
-      updatedMatch.participantes = updatedMatch.participantes.filter(
-        (p) => p.usuarioId !== currentUser.id
-      );
-      toast({
-        title: "Has salido del partido",
-        description: `Ya no estás en la lista para ${match.deporte?.nombre}.`,
-      });
+      const response = await leaveMatch(matchId, currentUser.id);
+
+      if (response.success) {
+        setIsPlayerJoined(false);
+        await fetchMatch();
+        toast({
+          title: "Has salido del partido",
+          description: `Ya no estás en la lista para ${match.deporte?.nombre}.`,
+        });
+      }
     } else {
       // Join match
       try {
         // Call the API to join the match
         const team = match.participantes.length % 2 === 0 ? "A" : "B"; // Alternate between teams A and B
-        const response = await joinMatch(matchId, currentUser.username, team);
-        if (response.success) {
+        const response = await joinMatch(matchId, currentUser.id, team);
+
+        if (response) {
+          setIsPlayerJoined(true);
+          await fetchMatch();
           toast({
             title: "¡Te has unido!",
             description: `Estás en la lista para ${match.deporte?.nombre}. ¡Prepárate!`,
@@ -200,60 +205,21 @@ function MatchDetailsPage() {
         });
         return;
       }
-      if (updatedMatch.participantes.length >= updatedMatch.cantidadJugadores) {
-        toast({
-          title: "Partido Lleno",
-          description:
-            "Este partido ya ha alcanzado el número máximo de jugadores.",
-          variant: "destructive",
-        });
-        return;
-      }
-      updatedMatch.participantes = [
-        ...updatedMatch.participantes,
-        { usuarioId: currentUser.id, email: currentUser.email },
-      ]; // Add more user info if needed
-      toast({
-        title: "¡Te has unido!",
-        description: `Estás en la lista para ${match.deporte?.nombre}. ¡Prepárate!`,
-      });
     }
-
-    // Auto-update status
-    if (updatedMatch.participantes.length >= updatedMatch.cantidadJugadores) {
-      if (updatedMatch.estado === "NECESITAMOS_JUGADORES") {
-        updatedMatch.estado = "PARTIDO_ARMADO";
-        toast({
-          title: "¡Equipo Completo!",
-          description:
-            "El partido ha alcanzado el número de jugadores necesarios.",
-          variant: "default",
-        });
-      }
-    } else {
-      if (updatedMatch.estado === "PARTIDO_ARMADO") {
-        updatedMatch.estado = "NECESITAMOS_JUGADORES";
-        toast({
-          title: "Jugador se fue",
-          description: "Un jugador ha dejado el partido, se necesitan más.",
-          variant: "default",
-        });
-      }
-    }
-
-    updateMatchInStorage(updatedMatch);
-    setIsPlayerJoined(!isPlayerJoined);
   };
 
-  const handleCancelMatch = () => {
+  const handleCancelMatch = async () => {
     if (!isOrganizer) return;
-    const updatedMatch = { ...match, estado: "CANCELADO" };
-    updateMatchInStorage(updatedMatch);
-    toast({
-      title: "Partido Cancelado",
-      description: "El partido ha sido cancelado.",
-      variant: "destructive",
-    });
+    const response = await endMatch(matchId);
+
+    if (response.success) {
+      toast({
+        title: "Partido Cancelado",
+        description: "El partido ha sido cancelado.",
+        variant: "destructive",
+      });
+      navigate("/find-match");
+    }
   };
 
   const handleConfirmMatch = () => {
@@ -311,8 +277,8 @@ function MatchDetailsPage() {
       teamAScore > teamBScore
         ? "Equipo A"
         : teamBScore > teamAScore
-        ? "Equipo B"
-        : "Empate";
+          ? "Equipo B"
+          : "Empate";
     const updatedMatch = {
       ...match,
       estado: "FINALIZADO",
@@ -327,9 +293,8 @@ function MatchDetailsPage() {
     setShowResultDialog(false);
     toast({
       title: "¡Partido Finalizado!",
-      description: `Resultado: Equipo A ${teamAScore} - ${teamBScore} Equipo B. ${
-        winner === "Empate" ? "¡Empate!" : `¡Ganó el ${winner}!`
-      }`,
+      description: `Resultado: Equipo A ${teamAScore} - ${teamBScore} Equipo B. ${winner === "Empate" ? "¡Empate!" : `¡Ganó el ${winner}!`
+        }`,
       variant: "default",
     });
   };
@@ -338,14 +303,12 @@ function MatchDetailsPage() {
     return (
       <div className="flex justify-center items-center h-64">
         <Sparkles
-          className={`h-12 w-12 animate-spin ${
-            darkMode ? "text-sky-400" : "text-blue-600"
-          }`}
+          className={`h-12 w-12 animate-spin ${darkMode ? "text-sky-400" : "text-blue-600"
+            }`}
         />
         <p
-          className={`ml-4 text-xl ${
-            darkMode ? "text-gray-300" : "text-gray-700"
-          }`}
+          className={`ml-4 text-xl ${darkMode ? "text-gray-300" : "text-gray-700"
+            }`}
         >
           Cargando detalles del partido...
         </p>
@@ -364,39 +327,35 @@ function MatchDetailsPage() {
       <Button
         variant="outline"
         onClick={() => navigate(-1)}
-        className={`mb-6 ${
-          darkMode
-            ? "border-sky-500 text-sky-400 hover:bg-sky-500/20"
-            : "border-blue-600 text-blue-700 hover:bg-blue-600/10"
-        }`}
+        className={`mb-6 ${darkMode
+          ? "border-sky-500 text-sky-400 hover:bg-sky-500/20"
+          : "border-blue-600 text-blue-700 hover:bg-blue-600/10"
+          }`}
       >
         <ChevronLeft className="mr-2 h-4 w-4" /> Volver a la búsqueda
       </Button>
 
       <Card
-        className={`overflow-hidden shadow-2xl ${
-          darkMode
-            ? "bg-gray-800/70 border-gray-700 backdrop-blur-md"
-            : "bg-white/70 border-gray-200 backdrop-blur-md"
-        }`}
+        className={`overflow-hidden shadow-2xl ${darkMode
+          ? "bg-gray-800/70 border-gray-700 backdrop-blur-md"
+          : "bg-white/70 border-gray-200 backdrop-blur-md"
+          }`}
       >
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <CardTitle
-              className={`text-4xl font-extrabold ${
-                darkMode
-                  ? "text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500"
-                  : "text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-700"
-              }`}
+              className={`text-4xl font-extrabold ${darkMode
+                ? "text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500"
+                : "text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-blue-700"
+                }`}
             >
               {match.deporte?.nombre}
             </CardTitle>
             <MatchStatusBadge status={match.estado} darkMode={darkMode} />
           </div>
           <CardDescription
-            className={`text-lg ${
-              darkMode ? "text-gray-400" : "text-gray-600"
-            }`}
+            className={`text-lg ${darkMode ? "text-gray-400" : "text-gray-600"
+              }`}
           >
             Organizado por:{" "}
             <span className="font-semibold">{match.organizador?.nombre}</span>
@@ -405,36 +364,31 @@ function MatchDetailsPage() {
         <CardContent className="space-y-6 py-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div
-              className={`p-4 rounded-lg ${
-                darkMode ? "bg-gray-700/50" : "bg-gray-50"
-              }`}
+              className={`p-4 rounded-lg ${darkMode ? "bg-gray-700/50" : "bg-gray-50"
+                }`}
             >
               <h3
-                className={`text-xl font-semibold mb-3 ${
-                  darkMode ? "text-sky-300" : "text-blue-700"
-                }`}
+                className={`text-xl font-semibold mb-3 ${darkMode ? "text-sky-300" : "text-blue-700"
+                  }`}
               >
                 Detalles del Evento
               </h3>
               <div className="space-y-3">
                 <div className="flex items-start">
                   <MapPin
-                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${
-                      darkMode ? "text-sky-400" : "text-blue-600"
-                    }`}
+                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${darkMode ? "text-sky-400" : "text-blue-600"
+                      }`}
                   />
                   <div>
                     <span
-                      className={`font-medium ${
-                        darkMode ? "text-gray-200" : "text-gray-800"
-                      }`}
+                      className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-800"
+                        }`}
                     >
                       Dirección:
                     </span>
                     <p
-                      className={`${
-                        darkMode ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`${darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       {match.direccion}
                     </p>
@@ -442,22 +396,19 @@ function MatchDetailsPage() {
                 </div>
                 <div className="flex items-start">
                   <CalendarDays
-                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${
-                      darkMode ? "text-sky-400" : "text-blue-600"
-                    }`}
+                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${darkMode ? "text-sky-400" : "text-blue-600"
+                      }`}
                   />
                   <div>
                     <span
-                      className={`font-medium ${
-                        darkMode ? "text-gray-200" : "text-gray-800"
-                      }`}
+                      className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-800"
+                        }`}
                     >
                       Fecha y Hora:
                     </span>
                     <p
-                      className={`${
-                        darkMode ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`${darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       {new Date(match.fecha).toLocaleDateString()} -{" "}
                       {match.hora}
@@ -466,22 +417,19 @@ function MatchDetailsPage() {
                 </div>
                 <div className="flex items-start">
                   <Clock
-                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${
-                      darkMode ? "text-sky-400" : "text-blue-600"
-                    }`}
+                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${darkMode ? "text-sky-400" : "text-blue-600"
+                      }`}
                   />
                   <div>
                     <span
-                      className={`font-medium ${
-                        darkMode ? "text-gray-200" : "text-gray-800"
-                      }`}
+                      className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-800"
+                        }`}
                     >
                       Duración:
                     </span>
                     <p
-                      className={`${
-                        darkMode ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`${darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       {match.duracion} horas
                     </p>
@@ -489,22 +437,19 @@ function MatchDetailsPage() {
                 </div>
                 <div className="flex items-start">
                   <Sparkles
-                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${
-                      darkMode ? "text-sky-400" : "text-blue-600"
-                    }`}
+                    className={`mr-3 mt-1 h-5 w-5 flex-shrink-0 ${darkMode ? "text-sky-400" : "text-blue-600"
+                      }`}
                   />
                   <div>
                     <span
-                      className={`font-medium ${
-                        darkMode ? "text-gray-200" : "text-gray-800"
-                      }`}
+                      className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-800"
+                        }`}
                     >
                       Nivel Requerido:
                     </span>
                     <p
-                      className={`${
-                        darkMode ? "text-gray-400" : "text-gray-600"
-                      }`}
+                      className={`${darkMode ? "text-gray-400" : "text-gray-600"
+                        }`}
                     >
                       {match.nivelMinimo} - {match.nivelMaximo}
                     </p>
@@ -514,27 +459,23 @@ function MatchDetailsPage() {
             </div>
 
             <div
-              className={`p-4 rounded-lg ${
-                darkMode ? "bg-gray-700/50" : "bg-gray-50"
-              }`}
+              className={`p-4 rounded-lg ${darkMode ? "bg-gray-700/50" : "bg-gray-50"
+                }`}
             >
               <h3
-                className={`text-xl font-semibold mb-3 ${
-                  darkMode ? "text-sky-300" : "text-blue-700"
-                }`}
+                className={`text-xl font-semibold mb-3 ${darkMode ? "text-sky-300" : "text-blue-700"
+                  }`}
               >
                 Jugadores
               </h3>
               <div className="flex items-center mb-3">
                 <Users
-                  className={`mr-3 h-5 w-5 ${
-                    darkMode ? "text-sky-400" : "text-blue-600"
-                  }`}
+                  className={`mr-3 h-5 w-5 ${darkMode ? "text-sky-400" : "text-blue-600"
+                    }`}
                 />
                 <span
-                  className={`font-medium ${
-                    darkMode ? "text-gray-200" : "text-gray-800"
-                  }`}
+                  className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-800"
+                    }`}
                 >
                   {match.participantes.length} / {match.cantidadJugadores}{" "}
                   confirmados
@@ -543,9 +484,8 @@ function MatchDetailsPage() {
               {playersRemaining > 0 &&
                 match.estado === "NECESITAMOS_JUGADORES" && (
                   <p
-                    className={`text-sm mb-3 ${
-                      darkMode ? "text-yellow-300" : "text-yellow-700"
-                    }`}
+                    className={`text-sm mb-3 ${darkMode ? "text-yellow-300" : "text-yellow-700"
+                      }`}
                   >
                     <AlertTriangle className="inline mr-1 h-4 w-4" /> ¡Aún
                     faltan {playersRemaining} jugador
@@ -563,38 +503,34 @@ function MatchDetailsPage() {
                   {match.participantes?.map((participante) => (
                     <li
                       key={participante.id}
-                      className={`flex items-center p-2 rounded ${
-                        darkMode ? "bg-gray-600/50" : "bg-gray-100"
-                      }`}
+                      className={`flex items-center p-2 rounded ${darkMode ? "bg-gray-600/50" : "bg-gray-100"
+                        }`}
                     >
                       <img
                         alt={participante.usuario.nombre}
-                        className={`h-6 w-6 rounded-full mr-2 ${
-                          darkMode
-                            ? "border-2 border-sky-500"
-                            : "border-2 border-blue-500"
-                        }`}
+                        className={`h-6 w-6 rounded-full mr-2 ${darkMode
+                          ? "border-2 border-sky-500"
+                          : "border-2 border-blue-500"
+                          }`}
                         src="https://images.unsplash.com/photo-1643101447193-9c59d5db2771"
                       />
                       <div>
                         <span
-                          className={`${
-                            darkMode ? "text-gray-300" : "text-gray-700"
-                          }`}
+                          className={`${darkMode ? "text-gray-300" : "text-gray-700"
+                            }`}
                         >
                           {participante.usuario.nombre}
                         </span>
                         <div className="text-xs mt-0.5">
                           <span
-                            className={`${
-                              participante.equipo === "A"
-                                ? darkMode
-                                  ? "text-blue-400"
-                                  : "text-blue-600"
-                                : darkMode
+                            className={`${participante.equipo === "A"
+                              ? darkMode
+                                ? "text-blue-400"
+                                : "text-blue-600"
+                              : darkMode
                                 ? "text-red-400"
                                 : "text-red-600"
-                            }`}
+                              }`}
                           >
                             Equipo {participante.equipo}
                           </span>
@@ -613,15 +549,14 @@ function MatchDetailsPage() {
             match.estado !== "FINALIZADO" && (
               <Button
                 onClick={handleJoinLeaveMatch}
-                className={`w-full mt-6 text-lg py-3 ${
-                  isPlayerJoined
-                    ? darkMode
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-red-500 hover:bg-red-600"
-                    : darkMode
+                className={`w-full mt-6 text-lg py-3 ${isPlayerJoined
+                  ? darkMode
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-red-500 hover:bg-red-600"
+                  : darkMode
                     ? "bg-green-500 hover:bg-green-600"
                     : "bg-green-600 hover:bg-green-700"
-                } text-white`}
+                  } text-white`}
               >
                 {isPlayerJoined ? (
                   <>
@@ -643,11 +578,10 @@ function MatchDetailsPage() {
               {match.estado === "CONFIRMADO" && (
                 <Button
                   onClick={handleStartMatch}
-                  className={`${
-                    darkMode
-                      ? "bg-purple-500 hover:bg-purple-600"
-                      : "bg-purple-600 hover:bg-purple-700"
-                  }`}
+                  className={`${darkMode
+                    ? "bg-purple-500 hover:bg-purple-600"
+                    : "bg-purple-600 hover:bg-purple-700"
+                    }`}
                 >
                   <Clock className="mr-2 h-4 w-4" /> Iniciar Partido
                 </Button>
@@ -655,11 +589,10 @@ function MatchDetailsPage() {
               {match.estado === "EN_JUEGO" && (
                 <Button
                   onClick={handleFinishMatch}
-                  className={`${
-                    darkMode
-                      ? "bg-gray-500 hover:bg-gray-600"
-                      : "bg-gray-600 hover:bg-gray-700"
-                  }`}
+                  className={`${darkMode
+                    ? "bg-gray-500 hover:bg-gray-600"
+                    : "bg-gray-600 hover:bg-gray-700"
+                    }`}
                 >
                   <Trophy className="mr-2 h-4 w-4" /> Finalizar Partido
                 </Button>
@@ -668,11 +601,10 @@ function MatchDetailsPage() {
                 <DialogTrigger asChild>
                   <Button
                     variant="destructive"
-                    className={`${
-                      darkMode
-                        ? "bg-red-600 hover:bg-red-700"
-                        : "bg-red-500 hover:bg-red-600"
-                    }`}
+                    className={`${darkMode
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-red-500 hover:bg-red-600"
+                      }`}
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> Cancelar Partido
                   </Button>
@@ -710,11 +642,10 @@ function MatchDetailsPage() {
                       onClick={() => {
                         handleCancelMatch(); /* Close dialog */
                       }}
-                      className={`${
-                        darkMode
-                          ? "bg-red-600 hover:bg-red-700"
-                          : "bg-red-500 hover:bg-red-600"
-                      }`}
+                      className={`${darkMode
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-red-500 hover:bg-red-600"
+                        }`}
                     >
                       Sí, Cancelar Partido
                     </Button>
@@ -724,26 +655,14 @@ function MatchDetailsPage() {
               {match.estado === "PARTIDO_ARMADO" && (
                 <Button
                   onClick={handleConfirmMatch}
-                  className={`${
-                    darkMode
-                      ? "bg-green-500 hover:bg-green-600"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
+                  className={`${darkMode
+                    ? "bg-green-500 hover:bg-green-600"
+                    : "bg-green-600 hover:bg-green-700"
+                    }`}
                 >
                   <CheckCircle className="mr-2 h-4 w-4" /> Confirmar Partido
                 </Button>
               )}
-              <Button
-                variant="outline"
-                className={
-                  darkMode
-                    ? "border-sky-500 text-sky-400 hover:bg-sky-500/20"
-                    : ""
-                }
-                onClick={() => navigate(`/edit-match/${match.id}`)}
-              >
-                <Edit3 className="mr-2 h-4 w-4" /> Editar Partido
-              </Button>
             </CardFooter>
           )}
 
@@ -817,11 +736,10 @@ function MatchDetailsPage() {
               </Button>
               <Button
                 onClick={handleResultSubmit}
-                className={`${
-                  darkMode
-                    ? "bg-sky-500 hover:bg-sky-600"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
+                className={`${darkMode
+                  ? "bg-sky-500 hover:bg-sky-600"
+                  : "bg-blue-600 hover:bg-blue-700"
+                  }`}
               >
                 Registrar Resultado
               </Button>
@@ -831,27 +749,23 @@ function MatchDetailsPage() {
 
         {match.estado === "FINALIZADO" && match.result && (
           <CardFooter
-            className={`pt-6 border-t mt-4 ${
-              darkMode ? "border-gray-700" : "border-gray-300"
-            }`}
+            className={`pt-6 border-t mt-4 ${darkMode ? "border-gray-700" : "border-gray-300"
+              }`}
           >
             <div
-              className={`flex items-center p-4 rounded-md w-full ${
-                darkMode
-                  ? "bg-gray-700/50 border border-gray-600"
-                  : "bg-gray-50 border border-gray-200"
-              }`}
+              className={`flex items-center p-4 rounded-md w-full ${darkMode
+                ? "bg-gray-700/50 border border-gray-600"
+                : "bg-gray-50 border border-gray-200"
+                }`}
             >
               <Trophy
-                className={`h-8 w-8 mr-3 flex-shrink-0 ${
-                  darkMode ? "text-yellow-400" : "text-yellow-500"
-                }`}
+                className={`h-8 w-8 mr-3 flex-shrink-0 ${darkMode ? "text-yellow-400" : "text-yellow-500"
+                  }`}
               />
               <div>
                 <h4
-                  className={`font-semibold text-lg ${
-                    darkMode ? "text-gray-200" : "text-gray-800"
-                  }`}
+                  className={`font-semibold text-lg ${darkMode ? "text-gray-200" : "text-gray-800"
+                    }`}
                 >
                   Resultado Final
                 </h4>
@@ -862,9 +776,8 @@ function MatchDetailsPage() {
                   Equipo B
                 </p>
                 <p
-                  className={`${
-                    darkMode ? "text-gray-300" : "text-gray-700"
-                  } font-medium`}
+                  className={`${darkMode ? "text-gray-300" : "text-gray-700"
+                    } font-medium`}
                 >
                   {match.result.winner === "Empate"
                     ? "¡Empate!"

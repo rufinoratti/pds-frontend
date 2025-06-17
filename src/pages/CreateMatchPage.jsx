@@ -8,14 +8,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate, useOutletContext, Link } from 'react-router-dom';
 import { CalendarPlus, MapPin, Users, Clock, BarChart3, AlertTriangle, Sparkles, ShieldPlus, Trophy } from 'lucide-react';
+import { getAllZones } from '@/services/zones';
+import { getSports } from '@/services/getSports';
+import { createMatch } from '../services/getMatches';
+import useUserStore from '@/store/userStore';
 
-const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
+//const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
 const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
 
 function CreateMatchPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { currentUser, darkMode } = useOutletContext();
+  const { darkMode } = useOutletContext();
+  const { currentUser } = useUserStore();
+  const [zones, setZones] = useState([]);
+  const [sports, setSports] = useState([]);
 
   const [matchData, setMatchData] = useState({
     sport: '',
@@ -26,13 +33,25 @@ function CreateMatchPage() {
     dateTime: '',
     requiredLevel: 'Cualquier nivel'
   });
-  
 
+  console.log(matchData)
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      const [zonesData, sportsData] = await Promise.all([
+        getAllZones(),
+        getSports()
+      ]);
+      setZones(zonesData);
+      setSports(sportsData);
+    };
+    loadData();
+  }, []);
   const handleInputChange = (field, value) => {
     setMatchData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) {
       toast({ title: "Error", description: "Debes iniciar sesión para crear un partido.", variant: "destructive" });
@@ -41,41 +60,45 @@ function CreateMatchPage() {
     }
 
     if (!matchData.sport || !matchData.playersNeeded || !matchData.duration || !matchData.zona || !matchData.dateTime) {
-        toast({ title: "Campos incompletos", description: "Por favor, rellena todos los campos obligatorios.", variant: "destructive" });
-        return;
+      toast({ title: "Campos incompletos", description: "Por favor, rellena todos los campos obligatorios.", variant: "destructive" });
+      return;
     }
-    
+
     const newMatch = {
-      id: Date.now().toString(),
-      organizerId: currentUser.username,
-      organizerUsername: currentUser.username,
-      sport: matchData.sport,
+      organizerId: currentUser.id,
+      sport: sports.find(s => s.nombre === matchData.sport).id,
       playersNeeded: matchData.playersNeeded,
       duration: matchData.duration,
       direccion: matchData.direccion,
-      zona: matchData.zona,
-      dateTime: matchData.dateTime,
-      levelRequired: matchData.requiredLevel,
-      status: "Necesitamos jugadores",
-      players: [{ username: currentUser.username, email: currentUser.email }],
-      createdAt: new Date().toISOString()
+      zona: zones.find(z => z.nombre === matchData.zona).id,
+      hora: matchData.dateTime.split('T')[1],
+      fecha: matchData.dateTime.split('T')[0],
+      levelRequired: levels.find(l => l === matchData.requiredLevel).id,
     };
 
-    if (newMatch.players.length >= newMatch.playersNeeded) {
-      newMatch.status = "Partido armado";
+    // if (newMatch.players.length >= newMatch.playersNeeded) {
+    //   newMatch.status = "Partido armado";
+    // }
+
+    // const matches = JSON.parse(localStorage.getItem('matches')) || [];
+    // matches.push(newMatch);
+    // localStorage.setItem('matches', JSON.stringify(matches));
+
+    const response = await createMatch(newMatch);
+
+
+    if (response) {
+      toast({ title: "¡Partido Creado!", description: `Tu partido de ${matchData.sport} ha sido creado exitosamente.` });
+      navigate(`/match/${response.id}`);
+    } else {
+      toast({ title: "Error", description: "No se pudo crear el partido. Por favor intente nuevamente.", variant: "destructive" });
     }
 
-    const matches = JSON.parse(localStorage.getItem('matches')) || [];
-    matches.push(newMatch);
-    localStorage.setItem('matches', JSON.stringify(matches));
-
-    toast({ title: "¡Partido Creado!", description: `Tu partido de ${matchData.sport} ha sido creado exitosamente.` });
-    navigate(`/match/${newMatch.id}`);
   };
-  
+
   if (!currentUser) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -94,7 +117,7 @@ function CreateMatchPage() {
   }
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -122,7 +145,7 @@ function CreateMatchPage() {
                     <SelectValue placeholder="Elige un deporte" />
                   </SelectTrigger>
                   <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
-                    {sports.map(s => <SelectItem key={s} value={s} className={darkMode ? 'hover:bg-gray-600' : ''}>{s}</SelectItem>)}
+                    {sports.map(s => <SelectItem key={s.id} value={s.nombre} className={darkMode ? 'hover:bg-gray-600' : ''}>{s.nombre}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -189,14 +212,14 @@ function CreateMatchPage() {
                 <Label htmlFor="zona" className={`flex items-center text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <MapPin className="mr-2 h-4 w-4 text-red-500" /> Zona *
                 </Label>
-                <Input
-                  id="zona"
-                  type="text"
-                  value={matchData.zona}
-                  onChange={(e) => handleInputChange('zona', e.target.value)}
-                  placeholder="Ej: Belgrano"
-                  className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}
-                />
+                <Select value={matchData.zona} onValueChange={(value) => handleInputChange('zona', value)}>
+                  <SelectTrigger id="zona" className={darkMode ? 'bg-gray-600 border-gray-500 text-white' : ''}>
+                    <SelectValue placeholder="Elige una zona" />
+                  </SelectTrigger>
+                  <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
+                    {zones.map(s => <SelectItem key={s.id} value={s.nombre} className={darkMode ? 'hover:bg-gray-600' : ''}>{s.nombre}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -232,4 +255,3 @@ function CreateMatchPage() {
 }
 
 export default CreateMatchPage;
-  

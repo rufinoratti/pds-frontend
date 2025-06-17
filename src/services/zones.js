@@ -17,7 +17,7 @@ export const getAllZones = async () => {
     }
     
     const data = await response.json();
-    
+    console.log(data);
     if (!data.success) {
       throw new Error(data.message || 'Error al obtener las zonas');
     }
