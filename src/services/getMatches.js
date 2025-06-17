@@ -16,12 +16,13 @@ export const getAllMatches = async () => {
       throw new Error(data.message);
     }
 
-    return data.data?.filter(match => match.estado !== "FINALIZADO" && match.estado !== "CANCELADO");
+    return data.data?.filter(match => match.estado === "NECESITAMOS_JUGADORES");
   } catch (error) {
     console.error("Error fetching matches:", error);
     throw error;
   }
 };
+
 
 /**
  * Returns a specific match by ID
@@ -155,6 +156,8 @@ export const createMatch = async (data) => {
       duracion: data.duration / 60,
       direccion: data.direccion,
       tipoEmparejamiento: "ZONA",
+      nivelMinimo: 1,
+      nivelMaximo: 3,
     }
 
     if (data.requiredLevel) {

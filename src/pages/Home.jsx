@@ -233,7 +233,7 @@ function Home() {
                   ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
                   : "bg-white text-gray-700 hover:bg-gray-50"
               }`}
-              onClick={() => navigate(`/find-match?sport=${sport.nombre}`)}
+              onClick={() => navigate(`/find-match?sport=${sport.id}`)}
             >
               {sport.nombre}
             </motion.div>
