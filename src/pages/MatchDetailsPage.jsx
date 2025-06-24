@@ -45,10 +45,11 @@ import {
   CheckCircle,
   XCircle,
   Trophy,
+  Loader2,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { endMatch, getMatchById, joinMatch, leaveMatch, confirmMatch } from "../services/getMatches";
+import { endMatch, getMatchById, joinMatch, leaveMatch, confirmMatch, startMatch, setMatchWinner } from "../services/getMatches";
 import useUserStore from "@/store/userStore";
 
 const MatchStatusBadge = ({ status, darkMode }) => {  let bgColor, textColor, Icon;
@@ -103,13 +104,17 @@ function MatchDetailsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { darkMode } = useOutletContext();
-  const { currentUser } = useUserStore();
-  const [match, setMatch] = useState(null);
+  const { currentUser } = useUserStore();  const [match, setMatch] = useState(null);
   const [isPlayerJoined, setIsPlayerJoined] = useState(false);
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [showResultDialog, setShowResultDialog] = useState(false);
-  const [result, setResult] = useState({ teamAScore: "", teamBScore: "" });
+  const [selectedWinner, setSelectedWinner] = useState(undefined); // undefined = no seleccionado, null = empate, "A"/"B" = equipo ganador
   const [matchesLoading, setMatchesLoading] = useState(true);
+  const [confirmingMatch, setConfirmingMatch] = useState(false);
+  const [startingMatch, setStartingMatch] = useState(false);
+  const [finishingMatch, setFinishingMatch] = useState(false);
+  const [cancelingMatch, setCancelingMatch] = useState(false);
+  const [joiningMatch, setJoiningMatch] = useState(false);
 
   const fetchMatch = async () => {
     try {
@@ -155,7 +160,6 @@ function MatchDetailsPage() {
       setMatch(updatedMatch); // Update local state
     }
   };
-
   const handleJoinLeaveMatch = async () => {
     if (!currentUser) {
       toast({
@@ -167,21 +171,22 @@ function MatchDetailsPage() {
       return;
     }
 
-    if (isPlayerJoined) {
-      // Leave match
-      const response = await leaveMatch(matchId, currentUser.id);
+    setJoiningMatch(true);
+    try {
+      if (isPlayerJoined) {
+        // Leave match
+        const response = await leaveMatch(matchId, currentUser.id);
 
-      if (response.success) {
-        setIsPlayerJoined(false);
-        await fetchMatch();
-        toast({
-          title: "Has salido del partido",
-          description: `Ya no estás en la lista para ${match.deporte?.nombre}.`,
-        });
-      }
-    } else {
-      // Join match
-      try {
+        if (response.success) {
+          setIsPlayerJoined(false);
+          await fetchMatch();
+          toast({
+            title: "Has salido del partido",
+            description: `Ya no estás en la lista para ${match.deporte?.nombre}.`,
+          });
+        }
+      } else {
+        // Join match
         // Call the API to join the match
         const team = match.participantes.length % 2 === 0 ? "A" : "B"; // Alternate between teams A and B
         const response = await joinMatch(matchId, currentUser.id, team);
@@ -194,35 +199,49 @@ function MatchDetailsPage() {
             description: `Estás en la lista para ${match.deporte?.nombre}. ¡Prepárate!`,
           });
         }
-      } catch (error) {
-        console.error("Error joining match:", error);
-        toast({
-          title: "Error",
-          description:
-            "No se pudo unir al partido. Por favor intente nuevamente.",
-          variant: "destructive",
-        });
-        return;
       }
-    }
-  };
-
-  const handleCancelMatch = async () => {
-    if (!isOrganizer) return;
-    const response = await endMatch(matchId);
-
-    if (response.success) {
+    } catch (error) {
+      console.error("Error joining/leaving match:", error);
       toast({
-        title: "Partido Cancelado",
-        description: "El partido ha sido cancelado.",
+        title: "Error",
+        description: isPlayerJoined 
+          ? "No se pudo salir del partido. Por favor intente nuevamente."
+          : "No se pudo unir al partido. Por favor intente nuevamente.",
         variant: "destructive",
       });
-      navigate("/find-match");
+    } finally {
+      setJoiningMatch(false);
     }
   };
-  const handleConfirmMatch = async () => {
+  const handleCancelMatch = async () => {
     if (!isOrganizer) return;
     
+    setCancelingMatch(true);
+    try {
+      const response = await endMatch(matchId);
+
+      if (response.success) {
+        toast({
+          title: "Partido Cancelado",
+          description: "El partido ha sido cancelado.",
+          variant: "destructive",
+        });
+        navigate("/find-match");
+      }
+    } catch (error) {
+      console.error("Error cancelando partido:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar el partido. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelingMatch(false);
+    }
+  };const handleConfirmMatch = async () => {
+    if (!isOrganizer) return;
+    
+    setConfirmingMatch(true);
     try {
       await confirmMatch(matchId);
       
@@ -242,71 +261,93 @@ function MatchDetailsPage() {
         description: "No se pudo confirmar el partido. Inténtalo de nuevo.",
         variant: "destructive",
       });
+    } finally {
+      setConfirmingMatch(false);
+    }
+  };  const handleStartMatch = async () => {
+    if (!isOrganizer) return;
+    
+    setStartingMatch(true);
+    try {
+      await startMatch(matchId);
+      
+      // Actualizar el estado local
+      const updatedMatch = { ...match, estado: "EN_JUEGO" };
+      setMatch(updatedMatch);
+      
+      toast({
+        title: "¡Partido Iniciado!",
+        description: "El partido ha comenzado. ¡Buena suerte!",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error iniciando partido:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo iniciar el partido. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setStartingMatch(false);
     }
   };
-
-  const handleStartMatch = () => {
-    if (!isOrganizer) return;
-    const updatedMatch = { ...match, estado: "EN_JUEGO" };
-    updateMatchInStorage(updatedMatch);
-    toast({
-      title: "¡Partido Iniciado!",
-      description: "El partido ha comenzado. ¡Buena suerte!",
-      variant: "default",
-    });
-  };
-
   const handleFinishMatch = () => {
     if (!isOrganizer) return;
     setShowResultDialog(true);
-  };
-
-  const handleResultSubmit = () => {
-    if (!result.teamAScore || !result.teamBScore) {
+  };  const handleFinishWithWinner = async () => {
+    console.log('handleFinishWithWinner called with:', { selectedWinner, matchId });
+    
+    if (selectedWinner === undefined) {
       toast({
         title: "Error",
-        description: "Por favor ingresa el resultado completo.",
+        description: "Por favor selecciona un ganador o empate.",
         variant: "destructive",
       });
       return;
     }
+    
+    setFinishingMatch(true);
+    try {
+      // Utilizamos la función de servicio setMatchWinner tanto para ganador como para empate
+      await setMatchWinner(matchId, selectedWinner);
+      
+      // Determinar el texto para mostrar según el ganador seleccionado
+      let winnerText = selectedWinner === "A" ? "Equipo A" : 
+                      selectedWinner === "B" ? "Equipo B" : "Empate";
+      
+      // Actualizar la interfaz de usuario
+      const updatedMatch = {
+        ...match,
+        estado: "FINALIZADO",
+        equipoGanador: selectedWinner,
+        result: {
+          winner: winnerText,
+        },
+      };
+      
+      setMatch(updatedMatch);
+      setShowResultDialog(false);
+      setSelectedWinner(undefined); // Limpiar selección completamente
+      
+      toast({
+        title: "¡Partido Finalizado!",
+        description: winnerText === "Empate" ? "El partido terminó en empate." : `¡Ganó el ${winnerText}!`,
+        variant: "default",
+      });
+      
+      // Actualizar partidos en el almacenamiento local (opcional)
+      updateMatchInStorage(updatedMatch);
 
-    const teamAScore = parseInt(result.teamAScore);
-    const teamBScore = parseInt(result.teamBScore);
-
-    if (isNaN(teamAScore) || isNaN(teamBScore)) {
+    } catch (error) {
+      console.error("Error al finalizar el partido:", error);
       toast({
         title: "Error",
-        description: "Los resultados deben ser números válidos.",
+        description: "No se pudo finalizar el partido. Inténtalo de nuevo.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setFinishingMatch(false);
     }
-
-    const winner =
-      teamAScore > teamBScore
-        ? "Equipo A"
-        : teamBScore > teamAScore
-          ? "Equipo B"
-          : "Empate";
-    const updatedMatch = {
-      ...match,
-      estado: "FINALIZADO",
-      result: {
-        teamAScore,
-        teamBScore,
-        winner,
-      },
-    };
-
-    updateMatchInStorage(updatedMatch);
-    setShowResultDialog(false);
-    toast({
-      title: "¡Partido Finalizado!",
-      description: `Resultado: Equipo A ${teamAScore} - ${teamBScore} Equipo B. ${winner === "Empate" ? "¡Empate!" : `¡Ganó el ${winner}!`
-        }`,
-      variant: "default",
-    });
   };
 
   if (!match) {
@@ -555,19 +596,24 @@ function MatchDetailsPage() {
           {currentUser &&
             !isOrganizer &&
             match.estado !== "CANCELADO" &&
-            match.estado !== "FINALIZADO" && (
-              <Button
+            match.estado !== "FINALIZADO" && (              <Button
                 onClick={handleJoinLeaveMatch}
+                disabled={joiningMatch}
                 className={`w-full mt-6 text-lg py-3 ${isPlayerJoined
                   ? darkMode
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-red-500 hover:bg-red-600"
+                    ? "bg-red-600 hover:bg-red-700 disabled:bg-red-400"
+                    : "bg-red-500 hover:bg-red-600 disabled:bg-red-300"
                   : darkMode
-                    ? "bg-green-500 hover:bg-green-600"
-                    : "bg-green-600 hover:bg-green-700"
-                  } text-white`}
+                    ? "bg-green-500 hover:bg-green-600 disabled:bg-green-400"
+                    : "bg-green-600 hover:bg-green-700 disabled:bg-green-400"
+                  } text-white disabled:cursor-not-allowed`}
               >
-                {isPlayerJoined ? (
+                {joiningMatch ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    {isPlayerJoined ? "Saliendo..." : "Uniéndose..."}
+                  </>
+                ) : isPlayerJoined ? (
                   <>
                     <UserX className="mr-2 h-5 w-5" /> Salir del Partido
                   </>
@@ -583,41 +629,58 @@ function MatchDetailsPage() {
         {isOrganizer &&
           match.estado !== "CANCELADO" &&
           match.estado !== "FINALIZADO" && (
-            <CardFooter className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t mt-4">
-              {match.estado === "CONFIRMADO" && (
+            <CardFooter className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t mt-4">              {match.estado === "CONFIRMADO" && (
                 <Button
                   onClick={handleStartMatch}
+                  disabled={startingMatch}
                   className={`${darkMode
                     ? "bg-purple-500 hover:bg-purple-600"
                     : "bg-purple-600 hover:bg-purple-700"
                     }`}
                 >
-                  <Clock className="mr-2 h-4 w-4" /> Iniciar Partido
+                  {startingMatch ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                      Iniciando...
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="mr-2 h-4 w-4" /> Iniciar Partido
+                    </>
+                  )}
                 </Button>
-              )}
-              {match.estado === "EN_JUEGO" && (
+              )}              {match.estado === "EN_JUEGO" && (
                 <Button
                   onClick={handleFinishMatch}
+                  disabled={finishingMatch}
                   className={`${darkMode
                     ? "bg-gray-500 hover:bg-gray-600"
                     : "bg-gray-600 hover:bg-gray-700"
                     }`}
                 >
-                  <Trophy className="mr-2 h-4 w-4" /> Finalizar Partido
-                </Button>
-              )}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    className={`${darkMode
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-red-500 hover:bg-red-600"
-                      }`}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Cancelar Partido
-                  </Button>
-                </DialogTrigger>
+                  {finishingMatch ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                      Finalizando...
+                    </>
+                  ) : (
+                    <>
+                      <Trophy className="mr-2 h-4 w-4" /> Finalizar Partido
+                    </>
+                  )}                </Button>              )}
+              {match.estado !== "ARMADO" && match.estado !== "EN_JUEGO" && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      className={`${darkMode
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-red-500 hover:bg-red-600"
+                        }`}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Cancelar Partido
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent
                   className={darkMode ? "bg-gray-800 border-gray-700" : ""}
                 >
@@ -645,36 +708,52 @@ function MatchDetailsPage() {
                       }
                     >
                       No, mantener
-                    </Button>
-                    <Button
+                    </Button>                    <Button
                       variant="destructive"
                       onClick={() => {
                         handleCancelMatch(); /* Close dialog */
                       }}
+                      disabled={cancelingMatch}
                       className={`${darkMode
                         ? "bg-red-600 hover:bg-red-700"
                         : "bg-red-500 hover:bg-red-600"
                         }`}
                     >
-                      Sí, Cancelar Partido
+                      {cancelingMatch ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Cancelando...
+                        </>
+                      ) : (
+                        "Sí, Cancelar Partido"
+                      )}
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>              {match.estado === "ARMADO" && (
+                  </DialogFooter>                </DialogContent>
+              </Dialog>
+              )}
+              {match.estado === "ARMADO" && (
                 <Button
                   onClick={handleConfirmMatch}
+                  disabled={confirmingMatch}
                   className={`${darkMode
                     ? "bg-green-500 hover:bg-green-600"
                     : "bg-green-600 hover:bg-green-700"
                     }`}
                 >
-                  <CheckCircle className="mr-2 h-4 w-4" /> Confirmar Partido
+                  {confirmingMatch ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                      Confirmando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" /> Confirmar Partido
+                    </>
+                  )}
                 </Button>
               )}
             </CardFooter>
-          )}
-
-        <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
+          )}        <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
           <DialogContent
             className={darkMode ? "bg-gray-800 border-gray-700" : ""}
           >
@@ -682,80 +761,80 @@ function MatchDetailsPage() {
               <DialogTitle
                 className={darkMode ? "text-sky-400" : "text-blue-700"}
               >
-                Registrar Resultado
+                Finalizar Partido
               </DialogTitle>
               <DialogDescription
                 className={darkMode ? "text-gray-400" : "text-gray-600"}
               >
-                Ingresa el resultado final del partido.
+                Selecciona el equipo ganador o indica si hubo empate.
               </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="teamAScore"
-                  className={darkMode ? "text-gray-300" : "text-gray-700"}
-                >
-                  Equipo A
-                </Label>
-                <Input
-                  id="teamAScore"
-                  type="number"
-                  min="0"
-                  value={result.teamAScore}
-                  onChange={(e) =>
-                    setResult((prev) => ({
-                      ...prev,
-                      teamAScore: e.target.value,
-                    }))
-                  }
-                  className={darkMode ? "bg-gray-700 border-gray-600" : ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="teamBScore"
-                  className={darkMode ? "text-gray-300" : "text-gray-700"}
-                >
-                  Equipo B
-                </Label>
-                <Input
-                  id="teamBScore"
-                  type="number"
-                  min="0"
-                  value={result.teamBScore}
-                  onChange={(e) =>
-                    setResult((prev) => ({
-                      ...prev,
-                      teamBScore: e.target.value,
-                    }))
-                  }
-                  className={darkMode ? "bg-gray-700 border-gray-600" : ""}
-                />
-              </div>
-            </div>
-            <DialogFooter>
+            </DialogHeader>            <div className="flex flex-col gap-4 py-4">
               <Button
+                variant={selectedWinner === "A" ? "default" : "outline"}
+                onClick={() => setSelectedWinner("A")}
+                disabled={finishingMatch}
+                className={`p-6 text-lg ${selectedWinner === "A" 
+                  ? darkMode ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-700 hover:bg-blue-800"
+                  : darkMode ? "border-blue-500 text-blue-400 hover:bg-blue-600 hover:text-white" : "border-blue-600 text-blue-700 hover:bg-blue-700 hover:text-white"
+                }`}
+              >
+                Ganador: Equipo A
+              </Button>
+              
+              <Button
+                variant={selectedWinner === "B" ? "default" : "outline"}
+                onClick={() => setSelectedWinner("B")}
+                disabled={finishingMatch}
+                className={`p-6 text-lg ${selectedWinner === "B" 
+                  ? darkMode ? "bg-red-600 hover:bg-red-700" : "bg-red-700 hover:bg-red-800"
+                  : darkMode ? "border-red-500 text-red-400 hover:bg-red-600 hover:text-white" : "border-red-600 text-red-700 hover:bg-red-700 hover:text-white"
+                }`}
+              >
+                Ganador: Equipo B
+              </Button>
+              
+              <Button
+                variant={selectedWinner === null ? "default" : "outline"}
+                onClick={() => setSelectedWinner(null)}
+                disabled={finishingMatch}
+                className={`p-6 text-lg ${selectedWinner === null
+                  ? darkMode ? "bg-yellow-600 hover:bg-yellow-700" : "bg-yellow-700 hover:bg-yellow-800"
+                  : darkMode ? "border-yellow-500 text-yellow-400 hover:bg-yellow-600 hover:text-white" : "border-yellow-600 text-yellow-700 hover:bg-yellow-700 hover:text-white"
+                }`}
+              >
+                Empate
+              </Button>
+            </div>
+            <DialogFooter>              <Button
                 variant="outline"
-                onClick={() => setShowResultDialog(false)}
+                onClick={() => {
+                  setShowResultDialog(false);
+                  setSelectedWinner(undefined);
+                }}
+                disabled={finishingMatch}
                 className={darkMode ? "border-gray-600 hover:bg-gray-700" : ""}
               >
                 Cancelar
-              </Button>
-              <Button
-                onClick={handleResultSubmit}
+              </Button><Button
+                onClick={handleFinishWithWinner}
+                disabled={selectedWinner === undefined || finishingMatch}
                 className={`${darkMode
                   ? "bg-sky-500 hover:bg-sky-600"
                   : "bg-blue-600 hover:bg-blue-700"
                   }`}
               >
-                Registrar Resultado
+                {finishingMatch ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                    Finalizando...
+                  </>
+                ) : (
+                  "Finalizar Partido"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
-
-        {match.estado === "FINALIZADO" && match.result && (
+        </Dialog>        {match.estado === "FINALIZADO" && match.result && (
           <CardFooter
             className={`pt-6 border-t mt-4 ${darkMode ? "border-gray-700" : "border-gray-300"
               }`}
@@ -767,8 +846,13 @@ function MatchDetailsPage() {
                 }`}
             >
               <Trophy
-                className={`h-8 w-8 mr-3 flex-shrink-0 ${darkMode ? "text-yellow-400" : "text-yellow-500"
-                  }`}
+                className={`h-8 w-8 mr-3 flex-shrink-0 ${
+                  match.result.winner === "Empate"
+                    ? darkMode ? "text-yellow-400" : "text-yellow-500"
+                    : match.result.winner === "Equipo A"
+                      ? darkMode ? "text-blue-400" : "text-blue-500"
+                      : darkMode ? "text-red-400" : "text-red-500"
+                }`}
               />
               <div>
                 <h4
@@ -778,14 +862,8 @@ function MatchDetailsPage() {
                   Resultado Final
                 </h4>
                 <p
-                  className={`${darkMode ? "text-gray-400" : "text-gray-600"}`}
-                >
-                  Equipo A {match.result.teamAScore} - {match.result.teamBScore}{" "}
-                  Equipo B
-                </p>
-                <p
                   className={`${darkMode ? "text-gray-300" : "text-gray-700"
-                    } font-medium`}
+                    } font-medium text-lg`}
                 >
                   {match.result.winner === "Empate"
                     ? "¡Empate!"
