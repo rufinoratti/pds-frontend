@@ -262,6 +262,8 @@ export const endMatch = async (matchId) => {
       throw new Error('No token found');
     }
 
+    console.log('Canceling match:', { matchId });
+
     const response = await fetch(`${API_URL}/partidos/${matchId}/cambiar-estado`, {
       method: 'PUT',
       headers: {
@@ -273,11 +275,16 @@ export const endMatch = async (matchId) => {
       })
     });
 
+    console.log('Cancel match response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Cancel match endpoint error:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
     const responseData = await response.json();
+    console.log('Cancel match response data:', responseData);
 
     if (!responseData.success) {
       throw new Error(responseData.message);
@@ -303,6 +310,8 @@ export const confirmMatch = async (matchId) => {
       throw new Error('No token found');
     }
 
+    console.log('Confirming match:', { matchId });
+
     const response = await fetch(`${API_URL}/partidos/${matchId}/cambiar-estado`, {
       method: 'PUT',
       headers: {
@@ -314,11 +323,16 @@ export const confirmMatch = async (matchId) => {
       })
     });
 
+    console.log('Confirm match response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Confirm match endpoint error:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
     const responseData = await response.json();
+    console.log('Confirm match response data:', responseData);
 
     if (!responseData.success) {
       throw new Error(responseData.message);
@@ -327,6 +341,54 @@ export const confirmMatch = async (matchId) => {
     return responseData;
   } catch (error) {
     console.error("Error confirming match:", error);
+    throw error;
+  }
+};
+
+/**
+ * Inicia un partido cambiando su estado de "CONFIRMADO" a "EN_JUEGO"
+ * @param {string} matchId - ID del partido a iniciar
+ * @returns {Promise<Object>} Respuesta del servidor
+ */
+export const startMatch = async (matchId) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    console.log('Starting match:', { matchId });
+
+    const response = await fetch(`${API_URL}/partidos/${matchId}/cambiar-estado`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nuevoEstado: "EN_JUEGO"
+      })
+    });
+
+    console.log('Start match response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Start match endpoint error:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('Start match response data:', responseData);
+
+    if (!responseData.success) {
+      throw new Error(responseData.message);
+    }
+
+    return responseData;
+  } catch (error) {
+    console.error("Error starting match:", error);
     throw error;
   }
 };
@@ -369,6 +431,89 @@ export const executeMatching = async (matchId, tipoEstrategia) => {
     return responseData;
   } catch (error) {
     console.error("Error executing matching:", error);
+    throw error;
+  }
+};
+
+/**
+ * Establece el equipo ganador de un partido y lo finaliza
+ * @param {string} matchId - ID del partido
+ * @param {string|null} equipoGanador - Equipo ganador (A o B), o null si es empate
+ * @returns {Promise<Object>} Respuesta del servidor
+ */
+export const setMatchWinner = async (matchId, equipoGanador) => {
+  try {
+    const token = localStorage.getItem('authToken');
+
+    if (!token) {
+      throw new Error('No token found');
+    }
+
+    console.log('Setting match winner:', { matchId, equipoGanador });
+
+    // Primero cambiamos el estado a FINALIZADO
+    console.log('Changing match state to FINALIZADO first');
+    
+    const responseEstado = await fetch(`${API_URL}/partidos/${matchId}/cambiar-estado`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        nuevoEstado: "FINALIZADO"
+      })
+    });
+
+    console.log('State change response status:', responseEstado.status);
+
+    if (!responseEstado.ok) {
+      const errorText = await responseEstado.text();
+      console.error('State change endpoint error:', errorText);
+      throw new Error(`HTTP error! status: ${responseEstado.status}, message: ${errorText}`);
+    }
+
+    const resultEstado = await responseEstado.json();
+    console.log('State change response data:', resultEstado);
+
+    if (!resultEstado.success) {
+      throw new Error(resultEstado.message);
+    }
+
+    // Después de finalizar el partido, establecemos el equipo ganador (solo si no es empate)
+    if (equipoGanador) {
+      console.log('Setting winner for team:', equipoGanador);
+      
+      const responseGanador = await fetch(`${API_URL}/partidos/${matchId}/ganador`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          equipoGanador
+        })
+      });
+
+      console.log('Winner response status:', responseGanador.status);
+
+      if (!responseGanador.ok) {
+        const errorText = await responseGanador.text();
+        console.error('Winner endpoint error:', errorText);
+        throw new Error(`HTTP error! status: ${responseGanador.status}, message: ${errorText}`);
+      }
+
+      const resultGanador = await responseGanador.json();
+      console.log('Winner response data:', resultGanador);
+
+      if (!resultGanador.success) {
+        throw new Error(resultGanador.message);
+      }
+    }
+
+    return resultEstado;
+  } catch (error) {
+    console.error("Error setting match winner:", error);
     throw error;
   }
 };
