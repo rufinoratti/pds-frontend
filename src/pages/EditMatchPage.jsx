@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { CalendarPlus, MapPin, Users, Clock, BarChart3, AlertTriangle, Sparkles, ShieldPlus, Trophy, Shirt } from 'lucide-react';
+import { CalendarPlus, MapPin, Users, Clock, AlertTriangle, Sparkles, ShieldPlus, Trophy, Shirt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 
-const sports = ["Fútbol", "Básquet", "Vóley", "Tenis", "Pádel", "Otro"];
+import { getMatchById } from '@/services/getMatches';
+import { getSports } from '@/services/getSports';
+import { getAllZones } from '@/services/zones';
+import { updateMatch } from '../services/getMatches';
+
 const levels = ["Cualquier nivel", "Principiante", "Intermedio", "Avanzado"];
 const teams = ["none", "Equipo A", "Equipo B"]; // Changed empty string to 'none'
 
@@ -43,48 +45,63 @@ function EditMatchPage() {
     players: [],
     teams: { teamA: [], teamB: [] }
   });
-  
+  const [sports, setSports] = useState([]);
+  const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOrganizer, setIsOrganizer] = useState(false);
 
+
   useEffect(() => {
-    console.log('EditMatchPage useEffect running');
-    console.log('currentUser:', currentUser);
-    const storedMatches = JSON.parse(localStorage.getItem('matches')) || [];
-    const matchToEdit = storedMatches.find(m => m.id === matchId);
+    const fetchMatch = async () => {
+      try {
+        const matchToEdit = await getMatchById(matchId);
+        if (matchToEdit) {
+          console.log('matchToEdit found:', matchToEdit);
+          // Format dateTime for the input field
+          // Join fecha and hora fields into dateTime format
+          const fecha = matchToEdit.fecha || '';
+          const hora = matchToEdit.hora || '';
+          const formattedDateTime = fecha && hora ? `${fecha}T${hora}` : '';
 
-    if (matchToEdit) {
-      console.log('matchToEdit found:', matchToEdit);
-      // Format dateTime for the input field
-      const [datePart, timePart] = matchToEdit.dateTime.split('T');
-      const formattedDateTime = `${datePart}T${timePart}`;
+          setMatchData({
+            sport: matchToEdit.deporte.nombre || '',
+            playersNeeded: matchToEdit.cantidadJugadores || 2,
+            duration: matchToEdit.duracion * 60 || 60,
+            location: matchToEdit.direccion || '',
+            dateTime: formattedDateTime || '',
+            requiredLevel: matchToEdit.levelRequired || 'Cualquier nivel',
+            players: matchToEdit.participantes || [],
+            teams: matchToEdit.teams || { teamA: [], teamB: [] }
+          });
+          
+          // Set isOrganizer based on fetched match data and currentUser
+          const userIsOrganizer = currentUser && matchToEdit.organizerId === currentUser.id; // Cambiar a ID
+          setIsOrganizer(userIsOrganizer);
+        } else {
+          console.log('matchToEdit not found for id:', matchId);
+          toast({ title: "Error", description: "Partido no encontrado para editar.", variant: "destructive" });
+          navigate('/find-match');
+        }
+      } catch (error) {
+        console.error('Error fetching match:', error);
+        toast({ title: "Error", description: "Error al cargar el partido.", variant: "destructive" });
+        navigate('/find-match');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setMatchData({
-        sport: matchToEdit.sport || '',
-        playersNeeded: matchToEdit.playersNeeded || 2,
-        duration: matchToEdit.duration || 60,
-        location: matchToEdit.location || '',
-        dateTime: formattedDateTime || '',
-        requiredLevel: matchToEdit.levelRequired || 'Cualquier nivel',
-        players: matchToEdit.players || [],
-        teams: matchToEdit.teams || { teamA: [], teamB: [] }
-      });
-      
-      // Set isOrganizer based on fetched match data and currentUser
-      const userIsOrganizer = currentUser && matchToEdit.organizerUsername === currentUser.username;
-      console.log('matchToEdit.organizerUsername:', matchToEdit.organizerUsername);
-      console.log('currentUser.username:', currentUser ? currentUser.username : 'no currentUser');
-      console.log('userIsOrganizer:', userIsOrganizer);
-      setIsOrganizer(userIsOrganizer);
+    const getData = async () => {
+      const [sports, zones] = await Promise.all([
+        getSports(),
+        getAllZones()
+      ]);
+      setSports(sports);
+      setZones(zones);
+    };
 
-      setLoading(false);
-
-    } else {
-      console.log('matchToEdit not found for id:', matchId);
-      toast({ title: "Error", description: "Partido no encontrado para editar.", variant: "destructive" });
-      navigate('/find-match');
-      setLoading(false);
-    }
+    fetchMatch();
+    getData();
   }, [matchId, navigate, toast, currentUser]);
 
   const handleInputChange = (field, value) => {
@@ -112,7 +129,7 @@ function EditMatchPage() {
   };
 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Check if isOrganizer is true before allowing submit
@@ -127,30 +144,21 @@ function EditMatchPage() {
         return;
     }
 
-    const storedMatches = JSON.parse(localStorage.getItem('matches')) || [];
-    const matchIndex = storedMatches.findIndex(m => m.id === matchId);
-
-    if (matchIndex !== -1) {
-      const updatedMatch = {
-        ...storedMatches[matchIndex],
-        sport: matchData.sport,
-        playersNeeded: matchData.playersNeeded,
-        duration: matchData.duration,
-        location: matchData.location,
-        dateTime: matchData.dateTime,
-        levelRequired: matchData.requiredLevel,
-        players: matchData.players, // Keep existing players
-        teams: matchData.teams // Save team assignments
-      };
-
-      storedMatches[matchIndex] = updatedMatch;
-      localStorage.setItem('matches', JSON.stringify(storedMatches));
-
-      toast({ title: "¡Partido Actualizado!", description: "Los cambios han sido guardados.", variant: "default" });
-      navigate(`/match/${matchId}`); // Navigate back to the details page
-    } else {
-       toast({ title: "Error", description: "No se pudo encontrar el partido para actualizar.", variant: "destructive" });
+    const updatedMatch = {
+      ...matchData,
+      deporteId: matchData.sport,
+      cantidadJugadores: matchData.playersNeeded,
+      duracion: matchData.duration,
+      direccion: matchData.location,
+      fecha: matchData.dateTime.split('T')[0],
+      hora: matchData.dateTime.split('T')[1],
+      levelRequired: matchData.requiredLevel,
+      participantes: matchData.players,
     }
+
+    const response = await updateMatch(updatedMatch);
+
+
   };
 
   // Show loading state
@@ -214,7 +222,7 @@ function EditMatchPage() {
                     <SelectValue placeholder="Elige un deporte" />
                   </SelectTrigger>
                   <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : ''}>
-                    {sports.map(s => <SelectItem key={s} value={s} className={darkMode ? 'hover:bg-gray-600' : ''}>{s}</SelectItem>)}
+                    {sports.map(s => <SelectItem key={s.id} value={s.nombre} className={darkMode ? 'hover:bg-gray-600' : ''}>{s.nombre}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

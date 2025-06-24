@@ -1,208 +1,254 @@
-
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
-
-const AuthForm = ({ isRegister, onSubmit, darkMode }) => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({ username, email, password, confirmPassword });
-  };
-
-  return (
-    <motion.form
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      onSubmit={handleSubmit}
-      className="space-y-6"
-    >
-      {isRegister && (
-        <div className="space-y-2">
-          <Label htmlFor={isRegister ? "reg-username" : "log-username"} className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Nombre de Usuario</Label>
-          <div className="relative">
-            <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-            <Input
-              id={isRegister ? "reg-username" : "log-username"}
-              type="text"
-              placeholder="TuNombreDeUsuario"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className={`pl-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`}
-            />
-          </div>
-        </div>
-      )}
-      <div className="space-y-2">
-        <Label htmlFor={isRegister ? "reg-email" : "log-email"} className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Correo Electrónico</Label>
-        <div className="relative">
-          <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-          <Input
-            id={isRegister ? "reg-email" : "log-email"}
-            type="email"
-            placeholder="tu@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className={`pl-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`}
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={isRegister ? "reg-password" : "log-password"} className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Contraseña</Label>
-        <div className="relative">
-          <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-          <Input
-            id={isRegister ? "reg-password" : "log-password"}
-            type={showPassword ? "text" : "password"}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className={`pl-10 pr-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-      {isRegister && (
-        <div className="space-y-2">
-          <Label htmlFor="confirm-password" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Confirmar Contraseña</Label>
-          <div className="relative">
-            <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-            <Input
-              id="confirm-password"
-              type={showConfirmPassword ? "text" : "password"}
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className={`pl-10 pr-10 ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-sky-500' : 'focus:border-blue-500'}`}
-            />
-            <button
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          </button>
-          </div>
-        </div>
-      )}
-      <Button type="submit" className={`w-full text-lg py-3 ${darkMode ? 'bg-sky-500 hover:bg-sky-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-        {isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
-      </Button>
-    </motion.form>
-  );
-};
+import useUserStore from '@/store/userStore';
+import { signup, login } from '@/services/auth';
+import { getAllZones } from '@/services/zones';
+import { getSports } from '@/services/getSports';
 
 function AuthPage() {
+  const [isLogin, setIsLogin] = React.useState(true);
+  const [formData, setFormData] = React.useState({
+    nombre: '',
+    email: '',
+    password: '',
+    nivel: 1,
+    zonaId: '',
+    deporteId: '',
+  });
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [zones, setZones] = React.useState([]);
+  const [sports, setSports] = React.useState([]);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { setCurrentUser, darkMode } = useOutletContext(); // Get setCurrentUser and darkMode from context
+  const { currentUser, setUser, logout } = useUserStore();
 
-  const handleRegister = ({ username, email, password, confirmPassword }) => {
-    if (password !== confirmPassword) {
-      toast({ title: "Error de registro", description: "Las contraseñas no coinciden.", variant: "destructive" });
-      return;
-    }
-    
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    if (users.find(user => user.email === email)) {
-      toast({ title: "Error de registro", description: "El correo electrónico ya está en uso.", variant: "destructive" });
-      return;
-    }
-    if (users.find(user => user.username === username)) {
-      toast({ title: "Error de registro", description: "El nombre de usuario ya está en uso.", variant: "destructive" });
-      return;
-    }
+  // Cargar zonas y deportes al montar el componente
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [zonesData, sportsData] = await Promise.all([
+          getAllZones(),
+          getSports()
+        ]);
+        setZones(zonesData);
+        setSports(sportsData);
+      } catch (error) {
+        console.error('Error loading zones and sports:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las zonas y deportes.",
+          variant: "destructive",
+        });
+      }
+    };
 
-    const newUser = { username, email, password, favoriteSport: '', skillLevel: '' };
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    localStorage.setItem('currentUser', JSON.stringify(newUser));
-    setCurrentUser(newUser);
-    toast({ title: "¡Registro Exitoso!", description: `Bienvenido/a, ${username}!` });
-    navigate('/');
+    loadData();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      let response;
+      
+      if (isLogin) {
+        // Usar el service de login
+        response = await login({
+          email: formData.email,
+          password: formData.password
+        });
+        
+        // Actualizar el estado global del usuario
+        // El usuario está en response.data.user según la estructura del backend
+        if (response.data && response.data.user) {
+          setUser(response.data.user);
+        }
+        
+        toast({
+          title: "¡Bienvenido!",
+          description: "Has iniciado sesión exitosamente.",
+        });
+        navigate('/');
+      } else {
+        // Usar el service de signup
+        response = await signup({
+          nombre: formData.nombre,
+          email: formData.email,
+          password: formData.password,
+          nivel: parseInt(formData.nivel),
+          zonaId: formData.zonaId,
+          deporteId: formData.deporteId
+        });
+        
+        toast({
+          title: "¡Registro exitoso!",
+          description: "Tu cuenta ha sido creada. Por favor, inicia sesión.",
+        });
+        setIsLogin(true);
+        setFormData({ 
+          nombre: '', 
+          email: '', 
+          password: '', 
+          nivel: 1, 
+          zonaId: '', 
+          deporteId: '' 
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Ha ocurrido un error. Por favor, intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLogin = ({ email, password }) => {
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const user = users.find(user => user.email === email && user.password === password);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-    if (user) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setCurrentUser(user);
-      toast({ title: "¡Inicio de Sesión Exitoso!", description: `Bienvenido/a de nuevo, ${user.username}!` });
-      navigate('/');
-    } else {
-      toast({ title: "Error de inicio de sesión", description: "Correo o contraseña incorrectos.", variant: "destructive" });
-    }
+  const handleSelectChange = (name, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   return (
-    <div className="flex items-center justify-center py-12 px-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Tabs defaultValue="login" className="w-full max-w-md">
-          <TabsList className={`grid w-full grid-cols-2 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100'}`}>
-            <TabsTrigger value="login" className={darkMode ? 'data-[state=active]:bg-sky-600 data-[state=active]:text-white' : 'data-[state=active]:bg-blue-600 data-[state=active]:text-white'}>Iniciar Sesión</TabsTrigger>
-            <TabsTrigger value="register" className={darkMode ? 'data-[state=active]:bg-sky-600 data-[state=active]:text-white' : 'data-[state=active]:bg-blue-600 data-[state=active]:text-white'}>Registrarse</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
-            <Card className={darkMode ? 'bg-gray-800/70 border-gray-700 backdrop-blur-md' : 'bg-white/70 border-gray-200 backdrop-blur-md'}>
-              <CardHeader>
-                <CardTitle className={`text-3xl font-bold text-center ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>¡Bienvenido/a de Nuevo!</CardTitle>
-                <CardDescription className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Ingresa tus credenciales para continuar.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AuthForm onSubmit={handleLogin} darkMode={darkMode} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="register">
-            <Card className={darkMode ? 'bg-gray-800/70 border-gray-700 backdrop-blur-md' : 'bg-white/70 border-gray-200 backdrop-blur-md'}>
-              <CardHeader>
-                <CardTitle className={`text-3xl font-bold text-center ${darkMode ? 'text-sky-400' : 'text-blue-700'}`}>Crea tu Cuenta</CardTitle>
-                <CardDescription className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Únete a la comunidad y no te pierdas ningún partido.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AuthForm isRegister onSubmit={handleRegister} darkMode={darkMode} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
+    <div className="container mx-auto flex items-center justify-center min-h-[calc(100vh-4rem)] py-8">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">
+            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {isLogin 
+              ? 'Ingresa tus credenciales para acceder a tu cuenta'
+              : 'Completa el formulario para crear tu cuenta'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre completo</Label>
+                  <Input
+                    id="nombre"
+                    name="nombre"
+                    type="text"
+                    placeholder="Juan Pérez"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nivel">Nivel de habilidad</Label>
+                  <Select onValueChange={(value) => handleSelectChange('nivel', parseInt(value))} value={formData.nivel.toString()}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tu nivel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Principiante</SelectItem>
+                      <SelectItem value="2">2 - Intermedio</SelectItem>
+                      <SelectItem value="3">3 - Avanzado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zonaId">Zona</Label>
+                  <Select onValueChange={(value) => handleSelectChange('zonaId', value)} value={formData.zonaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una zona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {zones.map((zone) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          {zone.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deporteId">Deporte</Label>
+                  <Select onValueChange={(value) => handleSelectChange('deporteId', value)} value={formData.deporteId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un deporte" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sports.map((sport) => (
+                        <SelectItem key={sport.id} value={sport.id}>
+                          {sport.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="john@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Cargando...' : isLogin ? 'Iniciar Sesión' : 'Registrarse'}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button
+            variant="link"
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-sm"
+          >
+            {isLogin 
+              ? '¿No tienes una cuenta? Regístrate'
+              : '¿Ya tienes una cuenta? Inicia sesión'}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
 
 export default AuthPage;
-  
